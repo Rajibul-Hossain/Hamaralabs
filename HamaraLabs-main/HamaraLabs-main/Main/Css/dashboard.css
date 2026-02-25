@@ -1,0 +1,612 @@
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
+body{display:flex;height:100vh;background:#f6f8fc;}
+.sidebar{width:260px;background:#ffffff;padding:25px 20px;border-right:1px solid #eaeaea;display:flex;flex-direction:column;}
+.logo{font-size:20px; font-weight:700;
+  margin-bottom:40px;}
+.nav-item{padding:12px 15px;
+  border-radius:10px;
+  cursor:pointer;
+  margin-bottom:8px;
+  font-weight:500;
+  transition:.2s;
+}
+
+.nav-item:hover{
+  background:#eef2ff;
+}
+
+.nav-item.active{
+  background:#e0e7ff;
+  color:#4338ca;
+}
+
+.main{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+
+.topbar{
+  height:70px;
+  background:#fff;
+  border-bottom:1px solid #eaeaea;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 30px;
+}
+
+.user-info{
+  display:flex;
+  align-items:center;
+  gap:15px;
+}
+
+.role-badge{
+  padding:6px 14px;
+  background:#e0e7ff;
+  border-radius:20px;
+  font-size:13px;
+  font-weight:500;
+  color:#4338ca;
+}
+
+.logout{
+  cursor:pointer;
+  color:#ef4444;
+  font-weight:500;
+}
+
+.content{
+  flex:1;
+  padding:30px;
+  overflow-y:auto;
+}
+
+.card{
+  background:#fff;
+  padding:20px;
+  border-radius:14px;
+  box-shadow:0 4px 15px rgba(0,0,0,.05);
+  margin-bottom:20px;
+}
+
+.card-title{
+  font-weight:600;
+  margin-bottom:15px;
+}
+
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:20px;
+}
+
+.stat-box{
+  background:#fff;
+  padding:20px;
+  border-radius:14px;
+  box-shadow:0 4px 15px rgba(0,0,0,.05);
+}
+
+.stat-box h3{
+  margin-top:5px;
+  font-size:24px;
+}
+
+.loader{
+  text-align:center;
+  padding:50px;
+  font-weight:500;
+}
+/* ================== FLUID ANIMATIONS ================== */
+@keyframes modalReveal {
+  0% { opacity: 0; transform: scale(0.95) translateY(30px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes slideUpFade {
+  0% { opacity: 0; transform: translateY(15px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.1); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+/* ================== FROSTED LIGHT BACKDROP ================== */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(245, 247, 251, 0.6); /* Very light blue/gray tint */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 1;
+  visibility: visible;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.modal.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ================== SLEEK WHITE CONTAINER ================== */
+.modal-content {
+  position: relative;
+  background: #ffffff;
+  width: 90%;
+  max-width: 420px;
+  border-radius: 32px; /* Extra round for that modern iOS feel */
+  padding: 50px 35px 35px;
+  margin-top: 40px; /* Space for the overlapping PFP */
+  
+  /* The "Airy" Shadow: Multi-layered for realistic depth */
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.04), 
+              0 1px 3px rgba(0, 0, 0, 0.02),
+              inset 0 0 0 1px rgba(255, 255, 255, 1);
+              
+  animation: modalReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ================== OVERLAPPING PFP ================== */
+.pfp-wrapper {
+  position: absolute;
+  top: -45px; /* Pulls the image up out of the modal box */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 90px;
+  z-index: 2;
+}
+
+#userPfp {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #fff;
+  /* Thick white border to cut into the modal background */
+  border: 4px solid #ffffff; 
+  box-shadow: 0 10px 25px rgba(63, 94, 251, 0.15);
+  position: relative;
+  z-index: 2;
+}
+
+/* Animated decorative ring behind the PFP */
+.pfp-ring {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 50%;
+  border: 2px solid #3f5efb;
+  z-index: 1;
+  animation: pulseRing 3s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+/* ================== TYPOGRAPHY ================== */
+.modal-content h3 {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+  color: #111827;
+  margin-bottom: 25px;
+  letter-spacing: -0.5px;
+}
+
+/* ================== INTERACTIVE DATA ROWS ================== */
+.data-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.modal-content p {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+  padding: 16px 20px;
+  background: #f8fafc; /* Ultra-light cool gray */
+  border-radius: 16px;
+  border: 1px solid transparent;
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  
+  opacity: 0;
+  animation: slideUpFade 0.5s ease forwards;
+}
+
+/* Cascade animation for rows */
+.modal-content p:nth-child(1) { animation-delay: 0.1s; }
+.modal-content p:nth-child(2) { animation-delay: 0.2s; }
+.modal-content p:nth-child(3) { animation-delay: 0.3s; }
+
+/* The Sleek Hover Effect */
+.modal-content p:hover {
+  background: #ffffff;
+  transform: scale(1.02) translateY(-2px);
+  border-color: #e2e8f0;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.03);
+}
+
+.modal-content p strong {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.modal-content span {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* ================== BUTTONS ================== */
+.modal-content button {
+  font-family: 'Product Sans', sans-serif;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.modal-content button:active {
+  transform: scale(0.95);
+}
+/* 1. Force the card to stack the title and the list vertically */
+#studentList .card {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+}
+
+/* 2. Force the student row to stretch full width and push items to the edges */
+#studentList .card > div:not(.card-title) {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  width: 100% !important; /* This stops it from shrinking into a tiny box */
+  box-sizing: border-box;
+  
+  /* Retaining the premium styling from earlier */
+  background: #fbfbfd;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  margin-bottom: 12px;
+}
+/* Gorgeous Primary Button */
+#editProfileBtn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 18px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #3f5efb 0%, #5c7cff 100%);
+  box-shadow: 0 8px 20px rgba(63, 94, 251, 0.25);
+  margin-bottom: 20px;
+  
+  opacity: 0;
+  animation: slideUpFade 0.5s ease forwards 0.4s;
+}#editProfileBtn:hover {
+  box-shadow: 0 12px 25px rgba(63, 94, 251, 0.35);
+  transform: translateY(-2px);
+}.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  opacity: 0;
+  animation: slideUpFade 0.5s ease forwards 0.5s;
+}.button-row button { padding: 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.button-row button:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+#logoutBtn {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+#logoutBtn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.settings-Btn {
+  margin-right: -950px; /* Pushes it to the left */  background: #f8fafc;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.settings-Btn:hover {
+  background: #e2e8f0;
+  transform: rotate(45deg); /* Sleek spin effect on hover */
+}
+ /* =========================================
+   iOS SYSTEM CARD 
+========================================= */
+.card {
+  background: #ffffff;
+  border-radius: 20px; /* Classic Apple rounding */
+  padding: 24px;
+  
+  /* Soft, multi-layered iOS shadow */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04), 
+              0 2px 8px rgba(0, 0, 0, 0.02);
+              
+  /* Spring entrance animation */
+  animation: iosPopIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.4s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06), 
+              0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+/* =========================================
+   iOS SETTINGS HEADER 
+========================================= */
+.card-title {
+  /* Apple uses very specific small, uppercase, semi-bold gray headers */
+  font-size: 13px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #86868b; /* iOS System Gray */
+  letter-spacing: -0.01em;
+  margin-bottom: 12px;
+  padding-left: 6px; 
+}
+#schoolSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 200px;
+  background-color: #f2f2f7; 
+  color: #1d1d1f; 
+  font-size: 17px; 
+  font-weight: 700;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  outline: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px;
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+#schoolSelect:hover {
+  background-color: #e5e5ea;
+}
+#schoolSelect:active {
+  transform: scale(0.97); 
+  background-color: #d1d1d6;
+}
+#schoolSelect:focus {
+  background-color: #ffffff;
+  border-color: #007aff; 
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23007aff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+@keyframes iosPopIn {
+  0% { opacity: 0; transform: scale(0.96) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+#studentList {
+  margin-top: 24px;
+  background-color: #ffffff5b;
+  border-radius: 16px; 
+  overflow: hidden; 
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04), 
+              0 2px 8px rgba(0, 0, 0, 0.02);
+  animation: iosFadeIn 1s ease forwards;
+}
+
+#studentList > div {
+  padding: 16px 20px;
+  background-color: #ffffff;
+  
+  /* The classic iOS ultra-thin separator line */
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.15); 
+  
+  font-family: 'Product Sans', -apple-system, sans-serif;
+  font-size: 17px; /* Native iOS text size */
+  color: #1d1d1f;
+  font-weight: 500;
+  
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  
+  /* Butter-smooth transition for the tap effect */
+  transition: background-color 0.2s ease;
+  
+  /* Staggered slide-in animation for each student row */
+  opacity: 0;
+  animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Remove the border from the very last student to keep it clean */
+#studentList > div:last-child {
+  border-bottom: none;
+}
+
+/* =========================================
+   iOS TAPTIC / MICRO-INTERACTIONS
+========================================= */
+/* The hover state (subtle for desktop users) */
+#studentList > div:hover {
+  background-color: #f9f9fb; 
+}
+
+/* The true iOS Active Tap state - instantly turns gray when touched */
+#studentList > div:active {
+  background-color: #e5e5ea; /* iOS System Gray 5 */
+  transition: background-color 0s; /* Instant color change on press */
+}
+
+/* =========================================
+   STAGGERED ANIMATION DELAYS
+   Makes the list items "waterfall" in one by one
+========================================= */
+#studentList > div:nth-child(1) { animation-delay: 0.05s; }
+#studentList > div:nth-child(2) { animation-delay: 0.10s; }
+#studentList > div:nth-child(3) { animation-delay: 0.15s; }
+#studentList > div:nth-child(4) { animation-delay: 0.20s; }
+#studentList > div:nth-child(5) { animation-delay: 0.25s; }
+#studentList > div:nth-child(6) { animation-delay: 0.30s; }
+
+/* =========================================
+   KEYFRAMES 
+========================================= */
+@keyframes slideInRight {
+  from { 
+    opacity: 0; 
+    transform: translateX(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+@keyframes iosFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* =========================================
+   STUDENT LIST CONTAINER & ROWS
+========================================= */
+
+/* The card container holding the dynamic list */
+#studentList .card {
+  /* Inherits your existing card shadow and radius */
+  padding: 20px;
+  background: #ffffff;
+}
+
+/* Targeting the dynamically injected student rows WITHOUT touching the JS */
+#studentList .card > div:not(.card-title) {
+  align-items: center !important; /* Centers the button and text vertically */
+  background: #fbfbfd; /* Apple's ultra-light surface color */
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  
+  /* Overriding the hardcoded margin smoothly */
+  margin-bottom: 12px;
+  
+  /* Smooth hover transition */
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  
+  /* Staggered Entrance Animation */
+  opacity: 0;
+  animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Row Hover / Tap Micro-interaction */
+#studentList .card > div:not(.card-title):hover {
+  background: #ffffff;
+  transform: scale(1.01) translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+}
+
+/* Styling the Student Name */
+#studentList .card > div:not(.card-title) strong {
+  font-family: 'Product Sans', -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d1d1f; /* System Gray 6 */
+  letter-spacing: -0.3px;
+}
+
+/* =========================================
+   THE "ASSIGN TASK" BUTTON (App Store Style)
+========================================= */
+#studentList .card > div:not(.card-title) button {
+  /* Mimicking the iOS App Store "Get" button */
+  background-color: #f2f2f7; /* Light system gray */
+  color: #007aff; /* Apple Blue */
+  font-family: 'Product Sans', -apple-system, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 8px 18px;
+  border-radius: 20px; /* Perfect pill shape */
+  border: none;
+  cursor: pointer;
+  
+  transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+#studentList .card > div:not(.card-title) button:hover {
+  background-color: #e5e5ea;
+}
+
+/* Physical push-down effect when clicked */
+#studentList .card > div:not(.card-title) button:active {
+  background-color: #d1d1d6;
+  transform: scale(0.92);
+  color: #005bb5;
+}
+
+
+#studentTaskModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 3000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#studentTaskModal > div {
+  background: #ffffff;
+  width: 90%;
+  max-width: 420px;
+  border-radius: 24px;
+  padding: 30px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12),
+              inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  animation: modalSpringIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* =========================================
+   ANIMATIONS
+========================================= */
+@keyframes slideUpFade {
+  0% { opacity: 0; transform: translateY(15px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes modalSpringIn {
+  0% { opacity: 0; transform: scale(0.85) translateY(20px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Staggering the generated rows so they waterfall in */
+#studentList .card > div:nth-child(2) { animation-delay: 0.05s; }
+#studentList .card > div:nth-child(3) { animation-delay: 0.1s; }
+#studentList .card > div:nth-child(4) { animation-delay: 0.15s; }
+#studentList .card > div:nth-child(5) { animation-delay: 0.2s; }
+#studentList .card > div:nth-child(6) { animation-delay: 0.25s; }

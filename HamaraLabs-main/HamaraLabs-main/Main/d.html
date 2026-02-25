@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HamaraLabs Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="Css/ww.css">
+  <link rel="stylesheet" href="Css/dashboard.css"></head>
+<body>
+<div class="sidebar" id="sidebar"><div class="logo">HamaraLabs 🏠</div></div><div class="main"><div class="topbar"><h3 id="welcomeText">Loading...</h3>
+<button class="settings-Btn" id="settingsBtn">⚙️</button><!-- settings button-->
+    <div class="user-info"><span class="role-badge"id="roleBadge"></span><div class="logout"id="logoutBtn">Logout</div> </div>
+  </div><div class="content" id="contentArea"><div class="loader">Loading dashboard...</div></div>
+
+
+<div class="modal hidden" id="assignTaskModal">
+  <div class="premium-modal-content">
+    
+    <div class="premium-modal-header">
+      <h3>Assign New Task</h3>
+      <button class="premium-close-btn" onclick="window.closeTaskModal()">✕</button>
+    </div>
+
+    <div class="premium-ai-box">
+      <div style="font-size: 1.4rem;">✨</div>
+      <input type="text" id="aiTaskIdea" class="premium-ai-input" placeholder="e.g., Build a smart dustbin with Arduino...">
+      <button id="aiGenerateBtn" class="premium-ai-btn" type="button" onclick="window.generateTaskWithAI()">
+        Auto-Write
+      </button>
+    </div>
+
+    <div class="premium-form-group">
+      <label class="premium-label">Task Title</label>
+      <input type="text" id="taskTitle" class="premium-input" placeholder="Enter a clear, concise title">
+    </div>
+
+    <div class="premium-form-group">
+      <label class="premium-label">Detailed Description</label>
+      <textarea id="taskDescription" class="premium-input" placeholder="Explain what the student needs to do..."></textarea>
+    </div>
+    
+    <div class="premium-grid-row">
+      <div class="premium-form-group">
+        <label class="premium-label">Due Date</label>
+        <input type="date" id="taskDueDate" class="premium-input">
+      </div>
+      <div class="premium-form-group">
+        <label class="premium-label">Priority Level</label>
+        <select id="taskPriority" class="premium-input">
+          <option value="low">🟢 Low Priority</option>
+          <option value="medium" selected>🟡 Medium Priority</option>
+          <option value="high">🔴 High Priority</option>
+        </select>
+      </div>
+    </div>
+    
+    <button class="premium-submit-btn" id="saveTaskBtn">Publish Task to Student</button>
+    
+  </div>
+</div> <div class="modal hidden" id="studentTaskModal">
+  <div class="modal-content">
+    <div style="display:flex;justify-content:space-between;">
+      <h3 id="modalStudentName">Student Tasks</h3>
+      <button onclick="closeStudentTaskModal()">X</button>
+    </div>
+    <div id="mentorTaskListContainer"></div>
+  </div>
+</div></div></div></div></div>
+</div><div id="settingsModal" class="modal hidden">
+  <div class="modal-content"><div class="pfp-wrapper">
+      <img src="https://static.vecteezy.com/system/resources/previews/021/548/095/original/default-profile-picture-avatar-user-avatar-icon-person-icon-head-icon-profile-picture-icons-default-anonymous-user-male-and-female-businessman-photo-placeholder-social-network-avatar-portrait-free-vector.jpg" alt="Profile Picture" id="userPfp">
+      <div class="pfp-ring"></div></div>
+    <h3>User Settings</h3>
+    <div class="data-group">
+      <p><strong>Email:</strong> <span id="userEmail">user@example.com</span></p>
+      <p><strong>UID:</strong> <span id="userUID">#847291</span></p>
+      <p><strong>Role:</strong> <span id="userRole"></span></p></div>
+      <p><strong>
+      </strong><span id="schoolUSER"></span></p>
+    <div class="button-row">
+      <button id="logoutBtn">Logout 📤</button>
+      <button id="closeModal">Close ❌</button></div></div></div>
+<div id="mentorDetailPanel" class="mentor-detail-panel hidden">
+  <div class="mentor-detail-content">
+    <div class="mentor-detail-header">
+      <span id="mentorDetailTitle"></span>
+      <button onclick="closeMentorDetailPanel()">✕</button></div>
+    <div id="mentorDetailBody"></div></div></div>
+<div id="studentTaskContainer"></div>
+<div id="dashboardContent"></div>
+<script type="module" src="jsCodes/dashboard.js"></script><script type="module" src="jsCodes/settings.js"></script>
+</body>
+</html>
+
+<!--The End Of Beginning-->

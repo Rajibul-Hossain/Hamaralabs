@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>School Registration</title>
+  <link rel="stylesheet" href="../Css/skl_reg.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <div class="card">
+    <h2>School Registration</h2>
+
+    <form id="schoolForm">
+
+      <!-- School Info -->
+      <div class="section">
+        <h3>School Details</h3>
+
+        <div class="grid-2">
+          <div class="input-group">
+            <input type="text" id="schoolName" required>
+            <label>School Name *</label>
+          </div>
+
+          <div class="checkbox-group">
+            <label>
+              <input type="checkbox" id="isAtl">
+              Is ATL School
+            </label>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="input-group">
+            <input type="text" id="addressLine" required>
+            <label>Address Line</label>
+          </div>
+
+          <div class="input-group">
+            <input type="text" id="city" required>
+            <label>City / District</label>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="input-group">
+            <input type="text" id="state" required>
+            <label>State / Province</label>
+          </div>
+
+          <div class="input-group">
+            <input type="number" id="pincode" required>
+            <label>Pincode</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Incharge -->
+      <div class="section">
+        <h3>Incharge Details</h3>
+        <div class="grid-2">
+          <div class="input-group"><input type="text" id="inFirst" required><label>First Name</label></div>
+          <div class="input-group"><input type="text" id="inLast" required><label>Last Name</label></div>
+          <div class="input-group"><input type="email" id="inEmail" required><label>Email</label></div>
+          <div class="input-group"><input type="text" id="inPhone" required><label>WhatsApp Contact</label></div>
+        </div>
+      </div>
+
+      <!-- Principal -->
+      <div class="section">
+        <h3>Principal Details</h3>
+        <div class="grid-2">
+          <div class="input-group"><input type="text" id="prFirst" required><label>First Name</label></div>
+          <div class="input-group"><input type="text" id="prLast" required><label>Last Name</label></div>
+          <div class="input-group"><input type="email" id="prEmail" required><label>Email</label></div>
+          <div class="input-group"><input type="text" id="prPhone" required><label>WhatsApp Contact</label></div>
+        </div>
+      </div>
+
+      <!-- Correspondent -->
+      <div class="section">
+        <h3>Correspondent Details</h3>
+
+        <div class="checkbox-group">
+          <label>
+            <input type="checkbox" id="sameAsPrincipal">
+            Same As Principal
+          </label>
+        </div>
+
+        <div class="grid-2">
+          <div class="input-group"><input type="text" id="coFirst"><label>First Name</label></div>
+          <div class="input-group"><input type="text" id="coLast"><label>Last Name</label></div>
+          <div class="input-group"><input type="email" id="coEmail"><label>Email</label></div>
+          <div class="input-group"><input type="text" id="coPhone"><label>WhatsApp Contact</label></div>
+        </div>
+      </div>
+
+      <!-- Extras -->
+      <div class="section">
+        <h3>Additional Details</h3>
+
+        <div class="checkbox-group multi">
+          <label><input type="checkbox" value="CBSE"> CBSE</label>
+          <label><input type="checkbox" value="State"> State</label>
+          <label><input type="checkbox" value="ICSE"> ICSE</label>
+          <label><input type="checkbox" value="IGCSE"> IGCSE</label>
+          <label><input type="checkbox" value="IB"> IB</label>
+        </div>
+
+        <div class="input-group">
+          <input type="url" id="website">
+          <label>Website URL</label>
+        </div>
+
+        <div class="checkbox-group">
+          <label>
+            <input type="checkbox" id="paidSubscription">
+            Paid Subscription
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn">Register School</button>
+
+    </form>
+  </div>
+
+</div>
+
+<script type="module" src="school.js"></script>
+</body>
+</html>

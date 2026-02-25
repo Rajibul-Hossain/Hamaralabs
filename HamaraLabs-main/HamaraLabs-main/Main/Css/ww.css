@@ -1,0 +1,1341 @@
+/* ============================= */
+/* CREATE SESSION MAIN CARD     */
+/* ============================= */
+
+.icard {
+  position: relative;
+  padding: 2.4rem;
+  border-radius: 32px;
+  background: linear-gradient(145deg, #ffffff, #f4f7fb);
+  box-shadow:
+    0 12px 40px rgba(15, 23, 42, 0.06),
+    0 4px 14px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  transition: all 0.55s cubic-bezier(.19,1,.22,1);
+  overflow: hidden;
+  animation: icardFade 0.9s cubic-bezier(.19,1,.22,1);
+}
+
+.icard:hover {
+  transform: translateY(-8px);
+  box-shadow:
+    0 25px 60px rgba(15, 23, 42, 0.08),
+    0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+/* gradient border glow */
+.icard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 32px;
+  padding: 1px;
+  background: linear-gradient(
+    120deg,
+    rgba(0,0,0,0.05),
+    rgba(0,0,0,0.02),
+    rgba(0,0,0,0.05)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ============================= */
+/* TITLE                        */
+/* ============================= */
+
+.icard-title {
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: #0f172a;
+  margin-bottom: 2rem;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: titleReveal 0.8s ease forwards 0.25s;
+}
+
+/* ============================= */
+/* INPUT FIELDS                 */
+/* ============================= */
+
+.sessiontitle,
+.sessiondate {
+  width: 100%;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.4rem;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  background: rgba(255,255,255,0.85);
+  font-size: 0.96rem;
+  font-weight: 500;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.35s cubic-bezier(.19,1,.22,1);
+  box-shadow: inset 0 3px 8px rgba(15,23,42,0.03);
+  backdrop-filter: blur(20px);
+}
+
+/* placeholder */
+.sessiontitle::placeholder,
+.sessiondate::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* focus state */
+.sessiontitle:focus,
+.sessiondate:focus {
+  border-color: rgba(15, 23, 42, 0.18);
+  box-shadow:
+    0 0 0 4px rgba(15,23,42,0.05),
+    inset 0 3px 10px rgba(15,23,42,0.04);
+  transform: scale(1.02);
+}
+
+/* date input clean iOS feel */
+.sessiondate {
+  appearance: none;
+  cursor: pointer;
+}
+
+.buton::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -140%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(255,255,255,0.0),
+    rgba(255,255,255,0.75),
+    rgba(255,255,255,0.0)
+  );
+  transform: skewX(-25deg);
+  transition: 0.9s;
+}
+
+.buton:hover::before {
+  left: 140%;
+}
+
+.buton:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 18px 45px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255,255,255,0.95);
+}
+
+.buton:active {
+  transform: scale(0.97);
+  box-shadow: 0 6px 15px rgba(15, 23, 42, 0.1);
+}
+
+/* ============================= */
+/* UPCOMING SESSIONS CARD       */
+/* ============================= */
+
+.i-card {
+  margin-top: 2.4rem;
+  padding: 2.2rem;
+  border-radius: 32px;
+  background: linear-gradient(160deg, #ffffff, #f6f9fc);
+  box-shadow:
+    0 15px 45px rgba(15, 23, 42, 0.06),
+    0 5px 18px rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(40px);
+  transition: all 0.55s cubic-bezier(.19,1,.22,1);
+  animation: icardFade 0.9s cubic-bezier(.19,1,.22,1);
+}
+
+.i-card:hover {
+  transform: translateY(-7px);
+  box-shadow:
+    0 28px 70px rgba(15, 23, 42, 0.09);
+}
+
+/* title */
+.card-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: #0f172a;
+  margin-bottom: 1.8rem;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: titleReveal 0.8s ease forwards 0.3s;
+}
+
+/* ============================= */
+/* SESSION LIST AREA            */
+/* ============================= */
+
+.ui {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-height: 70px;
+  transition: all 0.4s ease;
+}
+
+/* empty state */
+.ui:empty::after {
+  content: "No sessions scheduled yet.";
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #94a3b8;
+  padding: 1.2rem;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.03);
+  animation: fadeIn 0.6s ease;
+}
+
+/* ============================= */
+/* ANIMATIONS                   */
+/* ============================= */
+
+@keyframes icardFade {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes titleReveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* ============================= */
+/* SESSION TITLE INPUT          */
+/* ============================= */
+
+#sessionTitle {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border-radius: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  background: linear-gradient(145deg, #ffffff, #f5f8fc);
+  font-size: 0.97rem;
+  font-weight: 500;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.35s cubic-bezier(.19,1,.22,1);
+  box-shadow:
+    0 4px 12px rgba(15,23,42,0.04),
+    inset 0 2px 6px rgba(15,23,42,0.03);
+  backdrop-filter: blur(20px);
+  margin-bottom: 1.4rem;
+}
+
+#sessionTitle::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+#sessionTitle:focus {
+  border-color: rgba(15, 23, 42, 0.18);
+  box-shadow:
+    0 0 0 4px rgba(15,23,42,0.05),
+    0 8px 25px rgba(15,23,42,0.06),
+    inset 0 3px 8px rgba(15,23,42,0.04);
+  transform: scale(1.02);
+}
+
+
+/* ============================= */
+/* SESSION DATE INPUT           */
+/* ============================= */
+
+#sessionDate {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border-radius: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  background: linear-gradient(145deg, #ffffff, #f5f8fc);
+  font-size: 0.97rem;
+  font-weight: 500;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.35s cubic-bezier(.19,1,.22,1);
+  box-shadow:
+    0 4px 12px rgba(15,23,42,0.04),
+    inset 0 2px 6px rgba(15,23,42,0.03);
+  backdrop-filter: blur(20px);
+  margin-bottom: 1.6rem;
+  appearance: none;
+  cursor: pointer;
+}
+
+#sessionDate:focus {
+  border-color: rgba(15, 23, 42, 0.18);
+  box-shadow:
+    0 0 0 4px rgba(15,23,42,0.05),
+    0 8px 25px rgba(15,23,42,0.06),
+    inset 0 3px 8px rgba(15,23,42,0.04);
+  transform: scale(1.02);
+}
+
+
+/* ============================= */
+/* CREATE BUTTON                */
+/* ============================= */
+
+#createSessionBtn {
+  display: block;              /* allows centering */
+  width: 260px;                /* reduced width */
+  padding: 0.9rem 1rem;
+  margin: 2rem auto;           /* centers horizontally */
+  border-radius: 26px;
+  border: none;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  color: #0f172a;
+
+  background: linear-gradient(135deg, #ffffff, #eef2f7);
+  box-shadow:
+    0 10px 30px rgba(15,23,42,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+
+  transition: all 0.35s ease;
+  position: relative;
+}
+
+/* Hover effect */
+#createSessionBtn:hover {
+  background: linear-gradient(135deg, #3b82f6, #1e3a8a); /* blue → dark blue */
+  color: white;
+  transform: scale(1.08);        /* zoom effect */
+  box-shadow:
+    0 15px 40px rgba(30,58,138,0.4),
+    0 0 15px rgba(59,130,246,0.5);
+}
+
+/* Click press effect */
+#createSessionBtn:active {
+  transform: scale(0.98);
+}
+
+/* premium shine sweep */
+#createSessionBtn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -140%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(255,255,255,0),
+    rgba(255,255,255,0.75),
+    rgba(255,255,255,0)
+  );
+  transform: skewX(-25deg);
+  transition: 0.9s;
+}
+
+#createSessionBtn:hover::before {
+  left: 140%;
+}
+
+#createSessionBtn:hover {
+  transform: translateY(-5px);
+  box-shadow:
+    0 22px 55px rgba(15,23,42,0.12),
+    inset 0 1px 0 rgba(255,255,255,1);
+}
+
+#createSessionBtn:active {
+  transform: scale(0.97);
+  box-shadow: 0 6px 18px rgba(15,23,42,0.08);
+}#sessionDate {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  width: 100%;
+}
+/* ==========================================================================
+   SCOPED VARIABLES & MODAL OVERLAY (iOS Blur + One UI Structure)
+   ========================================================================== */
+
+#assignTaskModal {
+  --sys-blue: #007aff;
+  --sys-blue-active: #005bb5;
+  --surface-bg: #ffffff;
+  --input-bg: #f2f2f7;
+  --input-focus-bg: #ffffff;
+  --text-main: #1c1c1e;
+  --text-muted: #8e8e93;
+  --radius-modal: 28px; /* Samsung One UI large radius */
+  --radius-input: 14px; /* iOS standard input radius */
+  --radius-button: 9999px; /* One UI pill button */
+  
+  --ease-spring: cubic-bezier(0.25, 1, 0.5, 1);
+  --transition-speed: 0.3s;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 9999;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--transition-speed) var(--ease-spring), 
+              visibility var(--transition-speed) var(--ease-spring);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+}
+
+#assignTaskModal.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   MODAL CONTENT CARD
+   ========================================================================== */
+
+#assignTaskModal .modal-content {
+  background-color: var(--surface-bg);
+  width: 90%;
+  max-width: 380px;
+  padding: 32px 24px 24px;
+  border-radius: var(--radius-modal);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transform: translateY(0) scale(1);
+  transition: transform var(--transition-speed) var(--ease-spring);
+}
+
+#assignTaskModal.hidden .modal-content {
+  transform: translateY(20px) scale(0.95);
+}
+
+#assignTaskModal h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+/* ==========================================================================
+   INPUTS, TEXTAREA, AND SELECT (Unified Styles)
+   ========================================================================== */
+
+#assignTaskModal input[type="text"],
+#assignTaskModal textarea,
+#assignTaskModal input[type="date"],
+#assignTaskModal select {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  background-color: var(--input-bg);
+  border: 2px solid transparent;
+  border-radius: var(--radius-input);
+  padding: 16px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--text-main);
+  transition: all 0.2s ease-out;
+}
+
+#assignTaskModal input::placeholder,
+#assignTaskModal textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Focus States (iOS style highlight) */
+#assignTaskModal input[type="text"]:focus,
+#assignTaskModal textarea:focus,
+#assignTaskModal input[type="date"]:focus,
+#assignTaskModal select:focus {
+  outline: none;
+  background-color: var(--input-focus-bg);
+  border-color: var(--sys-blue);
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
+}
+
+/* ==========================================================================
+   SPECIFIC INPUT ADJUSTMENTS
+   ========================================================================== */
+
+#assignTaskModal textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.4;
+}
+
+#assignTaskModal input[type="date"] {
+  color: var(--text-main);
+  cursor: text;
+}
+
+#assignTaskModal input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+#assignTaskModal input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Custom Dropdown Arrow for Select */
+#assignTaskModal select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px;
+  padding-right: 48px;
+}
+
+/* ==========================================================================
+   PRIMARY BUTTON (One UI Pill Style)
+   ========================================================================== */
+
+#assignTaskModal .primary-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 12px;
+  padding: 16px;
+  background-color: var(--sys-blue);
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Subtle drop shadow for depth */
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.25);
+}
+
+#assignTaskModal .primary-btn:hover {
+  background-color: var(--sys-blue-active);
+}
+
+#assignTaskModal .primary-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.2);
+}
+/* ===== MARK COMPLETE BUTTON ===== */
+
+button[onclick^="markCompleted"] {
+  background: linear-gradient(145deg, #ffffff, #f2f2f7);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 14px;
+  padding: 12px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d1d1f;
+  cursor: pointer;
+  box-shadow:
+    0 4px 14px rgba(0,0,0,0.06),
+    inset 0 -2px 4px rgba(0,0,0,0.03);
+  transition: all 0.35s cubic-bezier(.4,0,.2,1);
+  backdrop-filter: blur(8px);
+}
+
+button[onclick^="markCompleted"]:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.08),
+    inset 0 -2px 6px rgba(0,0,0,0.04);
+}
+
+button[onclick^="markCompleted"]:active {
+  transform: scale(0.97);
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.06),
+    inset 0 2px 6px rgba(0,0,0,0.08);
+}
+
+/* Completed state glow (auto if 100% progress text nearby) */
+button[onclick^="markCompleted"].completed {
+  background: linear-gradient(145deg, #e9f9ee, #d4f4de);
+  color: #1a7f37;
+  border-color: rgba(26,127,55,0.2);
+  box-shadow:
+    0 6px 20px rgba(26,127,55,0.15);
+}
+
+
+
+/* ===== FILE INPUT (Choose File) ===== */
+
+input[type="file"] {
+  position: relative;
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1d1d1f;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: linear-gradient(145deg, #ffffff, #f2f2f7);
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(.4,0,.2,1);
+  box-shadow:
+    0 4px 14px rgba(0,0,0,0.05),
+    inset 0 -2px 4px rgba(0,0,0,0.02);
+}
+
+input[type="file"]::file-selector-button {
+  background: #007aff;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  margin-right: 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background: #005ecb;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0,122,255,0.3);
+}
+
+input[type="file"]::file-selector-button:active {
+  transform: scale(0.96);
+}
+input[type="file"]:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 22px rgba(0,0,0,0.08);
+}
+input[type="file"]:focus {
+  outline: none;
+  border-color: rgba(0,122,255,0.4);
+  box-shadow:
+    0 0 0 3px rgba(0,122,255,0.15),
+    0 6px 18px rgba(0,0,0,0.08);
+}
+/* =========================
+   ULTRA PREMIUM COMPLETED
+========================= */
+
+button.completed {
+
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d;
+
+  background: linear-gradient(
+    145deg,
+    #f4fff6,
+    #e0f7e7,
+    #f4fff6
+  );
+
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.7);
+
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #0a5c2f;
+
+  backdrop-filter: blur(18px);
+  box-shadow:
+    0 10px 40px rgba(0,0,0,0.12),
+    inset 0 0 12px rgba(255,255,255,0.9);
+
+  transition: all 0.6s cubic-bezier(.19,1,.22,1);
+
+  animation:
+    morphPop 0.7s cubic-bezier(.19,1,.22,1),
+    metallicSweep 4s linear infinite;
+}
+
+/* 3D Morph Entrance */
+
+@keyframes morphPop {
+  0% {
+    transform: scale(0.7) rotateX(25deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.05) rotateX(-6deg);
+  }
+  100% {
+    transform: scale(1) rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+/* Metallic Apple Wallet Shine */
+
+button.completed::before {
+
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 150%;
+  height: 100%;
+
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255,255,255,0.9) 45%,
+    rgba(255,255,255,1) 50%,
+    rgba(255,255,255,0.9) 55%,
+    transparent 100%
+  );
+
+  transform: skewX(-25deg);
+}
+
+@keyframes metallicSweep {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Soft 3D Breathing Glow */
+
+button.completed {
+  animation: glowPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0% {
+    box-shadow:
+      0 10px 40px rgba(0,0,0,0.12),
+      inset 0 0 8px rgba(255,255,255,0.7);
+  }
+  50% {
+    box-shadow:
+      0 18px 60px rgba(46,204,113,0.35),
+      inset 0 0 18px rgba(255,255,255,1);
+  }
+  100% {
+    box-shadow:
+      0 10px 40px rgba(0,0,0,0.12),
+      inset 0 0 8px rgba(255,255,255,0.7);
+  }
+}
+/* ==========================================================================
+   ULTRA-PREMIUM iOS & ONE UI BUTTON (Identifier Specific)
+   ========================================================================== */
+
+/* 1. KEYFRAME ANIMATIONS (Entrance, Breathing, and Shine) */
+
+/* Silky smooth iOS-style entrance */
+@keyframes iosLinkEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.94);
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Continuous ultra-subtle ambient pulse (Samsung One UI glow) */
+@keyframes iosLinkBreathingGlow {
+  0%, 100% {
+    box-shadow: 
+      0 8px 24px -6px rgba(0, 122, 255, 0.15),
+      inset 0 1px 1px rgba(255, 255, 255, 0.9),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.02);
+  }
+  50% {
+    box-shadow: 
+      0 12px 32px -4px rgba(0, 122, 255, 0.25),
+      inset 0 1px 1px rgba(255, 255, 255, 1),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.01);
+  }
+}
+
+/* High-performance GPU-accelerated shine sweep */
+@keyframes iosLinkShineSweep {
+  0% { 
+    transform: translateX(-150%) skewX(-15deg); 
+  }
+  100% { 
+    transform: translateX(200%) skewX(-15deg); 
+  }
+}
+
+/* ==========================================================================
+   2. MAIN COMPONENT STYLES
+   ========================================================================== */
+
+a.ios-view-link {
+  /* Reset to prevent any global bleed */
+  all: unset;
+  box-sizing: border-box;
+  
+  /* Layout */
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 28px;
+  margin-top: 8px;
+  
+  /* Typography (SF Pro / One UI style) */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #007aff; /* iOS System Blue */
+  text-decoration: none;
+  cursor: pointer;
+  
+  /* Shape (Pill radius for One UI / iOS modern look) */
+  border-radius: 9999px;
+  
+  /* Advanced Glassmorphism Base */
+  background: linear-gradient(
+    135deg, 
+    rgba(255, 255, 255, 0.85) 0%, 
+    rgba(255, 255, 255, 0.55) 100%
+  );
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  
+  /* Crisp sub-pixel border */
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  
+  /* Combine Entrance and Continuous Breathing animations */
+  animation: 
+    iosLinkEntrance 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards,
+    iosLinkBreathingGlow 4s ease-in-out infinite alternate;
+  
+  /* Prevent jagged edges during animation */
+  overflow: hidden;
+  z-index: 1;
+  transform: translateZ(0); /* Force hardware acceleration */
+  will-change: transform, box-shadow, background, filter;
+  
+  /* The "Master Transition":
+    Using a dramatic cubic-bezier for the iOS Spring effect on transform,
+    while keeping color and background transitions smooth and linear.
+  */
+  transition: 
+    transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    background 0.4s ease,
+    color 0.4s ease,
+    filter 0.4s ease;
+}
+
+/* ==========================================================================
+   3. SHINE LAYER (Pseudo-element)
+   ========================================================================== */
+
+a.ios-view-link::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  
+  /* Creates the sharp angled light beam */
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.9) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  
+  opacity: 0;
+  transform: translateX(-150%) skewX(-15deg);
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 0.3s ease;
+}
+
+/* ==========================================================================
+   4. HOVER STATE (Lift & Illuminate)
+   ========================================================================== */
+
+a.ios-view-link:hover {
+  /* Lift up and scale slightly */
+  transform: translateY(-3px) scale(1.02);
+  
+  /* Intensify the glass and color */
+  background: linear-gradient(
+    135deg, 
+    rgba(255, 255, 255, 0.95) 0%, 
+    rgba(255, 255, 255, 0.75) 100%
+  );
+  color: #005bb5;
+  
+  /* Pause the breathing animation to respect the user's focus */
+  animation-play-state: paused;
+  
+  /* Deep, multi-layered dramatic shadow */
+  box-shadow: 
+    0 24px 48px -12px rgba(0, 122, 255, 0.3),
+    0 12px 24px -8px rgba(0, 122, 255, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 1),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.03);
+}
+
+/* Fire the shine keyframe on hover */
+a.ios-view-link:hover::before {
+  opacity: 1;
+  animation: iosLinkShineSweep 0.85s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+/* ==========================================================================
+   5. ACTIVE STATE (The One UI Tactile "Squish")
+   ========================================================================== */
+
+a.ios-view-link:active {
+  transform: translateY(1px) scale(0.95);
+  transition-duration: 0.5s; 
+  box-shadow: 
+    0 4px 8px -2px rgba(0, 122, 255, 0.15),
+    inset 0 2px 6px rgba(0, 0, 0, 0.06),
+    inset 0 1px 1px rgba(255, 255, 255, 0.5);
+    
+  background: rgba(235, 235, 240, 0.7);
+  filter: brightness(0.96);
+  color: #004494;
+}
+/* ===== DOUBT CONTAINER ===== */
+div.ios-doubt-box {
+
+  margin-top: 24px;
+  padding: 22px;
+ 
+  border-radius: 30px;
+
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(100px);
+  -webkit-backdrop-filter: blur(30px);
+
+  border: 1px solid rgba(255,255,255,0.9);
+
+  box-shadow:
+    0 20px 40px rgba(0,0,0,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+
+  transition:
+    transform 0.35s cubic-bezier(.4,0,.2,1),
+    box-shadow 0.35s ease;
+
+}
+
+div.ios-doubt-box:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 30px 60px rgba(0,0,0,0.08);
+}
+
+
+/* ===== HEADER ===== */
+div.ios-doubt-header {
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  margin-bottom: 16px;
+
+}
+
+div.ios-doubt-icon {
+
+  width: 34px;
+  height: 34px;
+
+  border-radius: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-weight: 600;
+  font-size: 16px;
+
+  background: linear-gradient(145deg,#007aff,#5ac8fa);
+  color: white;
+
+  box-shadow:
+    0 8px 18px rgba(0,122,255,0.3);
+
+}
+
+div.ios-doubt-title {
+
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d1d1f;
+  letter-spacing: 0.3px;
+
+}
+
+
+/* ===== TEXTAREA ===== */
+textarea.ios-doubt-textarea {
+
+  width: 100%;
+  min-height: 90px;
+  resize: none;
+
+  padding: 14px 16px;
+
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,0.05);
+
+  background: rgba(255,255,255,0.85);
+
+  font-size: 14px;
+  font-weight: 500;
+  color: #1d1d1f;
+
+  outline: none;
+
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,0.04);
+
+  transition:
+    border 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.2s ease;
+
+}
+
+textarea.ios-doubt-textarea:focus {
+
+  border: 1px solid #007aff;
+
+  box-shadow:
+    0 0 0 4px rgba(0,122,255,0.1),
+    inset 0 2px 6px rgba(0,0,0,0.04);
+
+  transform: scale(1.01);
+
+}
+
+
+/* ===== FOOTER ===== */
+div.ios-doubt-footer {
+
+  display: flex;
+  justify-content: flex-end;
+
+  margin-top: 16px;
+
+}
+
+/* ===== SEND BUTTON ===== */
+button.ios-doubt-send {
+
+  position: relative;
+
+  padding: 10px 22px;
+
+  border-radius: 18px;
+  border: none;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  color: white;
+
+  background: linear-gradient(
+    135deg,
+    #007aff,
+    #5ac8fa
+  );
+
+  cursor: pointer;
+
+  box-shadow:
+    0 12px 25px rgba(0,122,255,0.3);
+
+  transition:
+    transform 0.25s cubic-bezier(.4,0,.2,1),
+    box-shadow 0.25s ease,
+    opacity 0.25s ease;
+
+  overflow: hidden;
+
+}
+
+
+/* Metallic Shine */
+button.ios-doubt-send::before {
+
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 120%;
+  height: 100%;
+
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255,255,255,0.6) 45%,
+    rgba(255,255,255,0.9) 50%,
+    rgba(255,255,255,0.6) 55%,
+    transparent 100%
+  );
+
+  transition: 0.8s ease;
+
+}
+
+button.ios-doubt-send:hover {
+
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 18px 35px rgba(0,122,255,0.35);
+
+}
+
+button.ios-doubt-send:hover::before {
+  left: 120%;
+}
+
+button.ios-doubt-send:active {
+  transform: scale(0.96);
+}
+@media (max-width: 900px) {
+  div.student-task-card .ask-mentor-container {
+    position: relative;
+    right: unset;
+    bottom: unset;
+    width: 100%;
+    margin-top: 20px;
+  }
+}
+#mentorDetailPanel {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  z-index: 9999;
+  transition: opacity .35s ease;
+}
+
+#mentorDetailPanel.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#mentorDetailPanel .mentor-detail-content {
+  width: 100%;
+  max-width: 720px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(60px);
+  -webkit-backdrop-filter: blur(60px);
+  border-top-left-radius: 30px;
+  border-top-right-radius: 30px;
+  padding: 28px;
+  box-shadow:
+    0 -10px 40px rgba(0,0,0,0.1),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+  transform: translateY(100%);
+  transition: transform .45s cubic-bezier(.22,1,.36,1);
+}
+
+#mentorDetailPanel:not(.hidden) .mentor-detail-content {
+  transform: translateY(0);
+}
+
+#mentorDetailPanel .mentor-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  font-weight: 600;
+  font-size: 18px;
+}
+#mentorDetailPanel .mentor-detail-header button {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+}
+.mentor-doubt-card {
+  padding: 14px;
+  margin-bottom: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mentor-doubt-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+}
+
+.mentor-doubt-text {
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.mentor-doubt-date {
+  font-size: 12px;
+  color: #777;
+}
+
+  /* --- MODAL OVERLAY & CONTAINER --- */
+  #assignTaskModal {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 10000; opacity: 1; transition: opacity 0.3s ease;
+  }
+  #assignTaskModal.hidden {
+    opacity: 0; pointer-events: none;
+  }
+  
+  .premium-modal-content {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 1);
+    width: 90%; max-width: 550px;
+    border-radius: 24px; padding: 32px;
+    transform: translateY(0) scale(1);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  #assignTaskModal.hidden .premium-modal-content {
+    transform: translateY(20px) scale(0.95);
+  }
+
+  /* --- HEADER --- */
+  .premium-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .premium-modal-header h3 {
+    margin: 0; font-size: 1.6rem; font-weight: 800; color: #111; letter-spacing: -0.5px;
+  }
+  .premium-close-btn {
+    all: unset; background: rgba(0,0,0,0.05); width: 36px; height: 36px;
+    border-radius: 50%; display: flex; justify-content: center; align-items: center;
+    font-size: 1.2rem; color: #555; cursor: pointer; transition: all 0.2s ease;
+  }
+  .premium-close-btn:hover { background: #ff3b30; color: #fff; transform: rotate(90deg); }
+
+  /* --- AI MAGIC GENERATOR BOX --- */
+  @keyframes gradientPan {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .premium-ai-box {
+    background: linear-gradient(-45deg, rgba(138, 43, 226, 0.1), rgba(0, 102, 255, 0.1), rgba(0, 200, 255, 0.1));
+    background-size: 200% 200%;
+    animation: gradientPan 8s ease infinite;
+    border: 1px solid rgba(138, 43, 226, 0.3);
+    border-radius: 16px; padding: 16px;
+    display: flex; gap: 12px; align-items: center;
+    box-shadow: inset 0 2px 4px rgba(255,255,255,0.5);
+  }
+  .premium-ai-input {
+    flex-grow: 1; all: unset; background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(138, 43, 226, 0.15); padding: 10px 14px;
+    border-radius: 10px; font-size: 0.95rem; color: #222; transition: all 0.3s;
+  }
+  .premium-ai-input:focus {
+    background: #fff; border-color: #8a2be2; box-shadow: 0 0 0 4px rgba(138, 43, 226, 0.15);
+  }
+  .premium-ai-btn {
+    all: unset; background: linear-gradient(135deg, #8a2be2, #4169e1);
+    color: white; font-weight: 700; font-size: 0.9rem; padding: 10px 20px;
+    border-radius: 10px; cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 4px 12px rgba(138, 43, 226, 0.3); white-space: nowrap;
+  }
+  .premium-ai-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(138, 43, 226, 0.4); }
+  .premium-ai-btn:active { transform: scale(0.96); }
+  
+  .ai-generating {
+    background: linear-gradient(90deg, #8a2be2, #b185fa, #8a2be2);
+    background-size: 200% 100%; animation: shimmer 1.5s infinite linear; pointer-events: none; opacity: 0.8;
+  }
+  @keyframes shimmer { 0% { background-position: -100% 0; } 100% { background-position: 200% 0; } }
+
+  /* --- STANDARD INPUTS & GRID --- */
+  .premium-form-group { display: flex; flex-direction: column; gap: 6px; }
+  .premium-label { font-size: 0.85rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 4px; }
+  
+  .premium-input {
+    all: unset; box-sizing: border-box; background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(0, 0, 0, 0.1); padding: 14px 16px;
+    border-radius: 12px; font-size: 1rem; color: #111; transition: all 0.3s ease;
+    width: 100%;
+  }
+  .premium-input:focus {
+    background: #fff; border-color: #0066ff; box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1);
+  }
+  textarea.premium-input { resize: vertical; min-height: 100px; line-height: 1.5; }
+
+  /* CSS Grid for perfect half-width alignment */
+  .premium-grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* Custom styling for the select dropdown */
+  select.premium-input { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 16px center; background-size: 16px; padding-right: 40px; }
+
+  /* --- PRIMARY SUBMIT BUTTON --- */
+  .premium-submit-btn {
+    all: unset; box-sizing: border-box; width: 100%; text-align: center;
+    background: #111; color: #fff; font-size: 1.1rem; font-weight: 700;
+    padding: 16px; border-radius: 14px; cursor: pointer; margin-top: 8px;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  }
+  .premium-submit-btn:hover { background: #0066ff; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0, 102, 255, 0.25); }
+  .premium-submit-btn:active { transform: scale(0.98); }

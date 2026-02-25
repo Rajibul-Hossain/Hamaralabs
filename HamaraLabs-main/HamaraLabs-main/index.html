@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HamaraLabs -Auth 🔒</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:opsz,wght@20..48,400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Petrona:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Sofia&display=swap" rel="stylesheet">
+  <link href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/regular/style.css" rel="stylesheet">
+  <link rel="stylesheet" href="Main/Css/auth.css" />
+</head>
+<body>
+<div class="logo-watermark"></div><main class="auth-shell">
+    <section class="auth-card"><header class="auth-header"><h1>Hamara Labs </h1><p>Digital ATL Labs</p></header>
+      <div class="auth-flow">
+        <div class="expand-group active" id="emailGroup">
+          <button class="expand-trigger">Register Yourself ®️</button>
+          <div class="expand-content">
+            <input type="email" placeholder="Email address" />
+            <input type="password" placeholder="Password" />
+            <div id="dynamicFields"></div>
+            <button class="primary-btn">Continue</button></div></div>
+        <div class="expand-group" id="phoneGroup">
+          <button class="expand-trigger">Login 👤</button>
+          <div class="expand-content">
+            <input type="email" placeholder="Enter your Email Id 📥" />
+            <input type="password" placeholder="Password" />
+            <button class="primary-btn">Login</button>
+          </div>
+        </div>
+        <div class="provider-section">
+          <p class="provider-label">Or continue with</p>
+          <div class="provider-grid">
+            <button class="provider-btn google">
+             Google 
+            </button>
+            <button class="provider-btn microsoft">
+               Microsoft
+            </button>
+            <button class="provider-btn yahoo">
+               Yahoo
+            </button>
+          </div>
+        </div>
+        <div class="role-selector">
+  <label>I am registering as</label>
+  <div class="role-options">
+    <button type="button" data-role="student" class="role-btn active">Student 🧑‍🎓</button>
+    <button type="button" data-role="mentor" class="role-btn">Mentor 👩‍🏫</button>
+    <button type="button" data-role="Admin" class="role-btn">Administrator</button>
+  </div></div></div><div id="feedback" class="feedback"></div>
+    </section>
+  </main>
+  <canvas id="snowCanvas"></canvas>
+<div class="leaf-layer">
+  <img src="img/idea.svg" alt="Unable to Load Image" class="leaf leaf-top-left" />
+  <img src="img/idea.svg" alt="Unable to Load Image" class="leaf leaf-top-right" />
+  <img src="img/idea.svg" alt="Unable to Load Image" class="leaf leaf-mid-left" />
+  <img src="img/idea.svg" alt="Unable to Load Image" class="leaf leaf-mid-right" />
+</div>
+  <script>
+    document.querySelectorAll(".expand-trigger").forEach(trigger => {
+      trigger.addEventListener("click", () => {
+        const group = trigger.closest(".expand-group");
+        document.querySelectorAll(".expand-group").forEach(g => {
+          if (g !== group) g.classList.remove("active");});
+        group.classList.toggle("active");});});
+  </script>
+  <script>
+  const canvas = document.getElementById("snowCanvas");
+  const ctx = canvas.getContext("2d");
+  let w, h;
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;}
+  resize();
+  window.addEventListener("resize", resize);
+  const particles = Array.from({ length: 60 }, () => ({
+    x: Math.random() * w,
+    y: Math.random() * h,
+    r: Math.random() * 1.8 + 0.6,
+    s: Math.random() * 0.6 + 0.2,
+    o: Math.random() * 0.4 + 0.2
+  }));
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "rgba(180,255,220,0.5)";
+    particles.forEach(p => {
+      ctx.globalAlpha = p.o;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+      p.y += p.s;
+      if (p.y > h) { p.y = -10;p.x = Math.random() * w;}});
+    requestAnimationFrame(draw);
+  }draw();
+</script>
+<script>
+  const leaves = document.querySelectorAll(".leaf");
+  document.addEventListener("mousemove", e => {const x = (e.clientX / window.innerWidth - 0.5) * 10;const y = (e.clientY / window.innerHeight - 0.5) * 10;
+    leaves.forEach((leaf, i) => {leaf.style.transform =`translate(${x * (i+1)}px, ${y * (i+1)}px) rotate(${x}deg)`;});});
+</script>
+<script type="module" src="Main/jsCodes/auth.js"></script>
+</body>
+</html>
