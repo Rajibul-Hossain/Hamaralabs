@@ -1,49 +1,54 @@
 // api/generateTask.js
 const cors = require('cors')({ origin: true });
 export default async function handler(req, res) {
-  // 1. Manually set CORS Headers (The bulletproof Vercel way)
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*'); // Allows your frontend to connect
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS,POST');
   res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
-  // 2. Handle the "Pre-flight" request the browser sends before a POST
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
-  // 3. Block anything that isn't a POST request (like typing the link in a browser)
+  // Check if API Key exists before doing anything
+  const API_KEY = process.env.gemikey;
+  if (!API_KEY) {
+    return res.status(500).json({ 
+      error: 'SERVER_ERROR', 
+      details: 'GEMINI_SECURE_KEY is missing in Vercel Environment Variables.' 
+    });
+  }
+
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed. Use the HamaraLabs App to access this endpoint.' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    // Grab the securely hidden key from Vercel Environment Variables
-    const API_KEY = process.env.GEMINI_SECURE_KEY;
     const { promptText } = req.body;
 
-    if (!API_KEY) {
-      return res.status(500).json({ error: 'API Key is missing on the server.' });
-    }
-
-    // Call Google Gemini safely from the backend
-    const googleResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
+    // Use a more robust fetch call
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: promptText }] }],
-        generationConfig: { temperature: 0.7 }
+        contents: [{ parts: [{ text: promptText }] }]
       })
     });
 
-    const data = await googleResponse.json();
+    const data = await response.json();
     
-    // Send the AI magic back to the frontend
+    // Log the data to Vercel Logs for debugging
+    console.log("Gemini Response:", JSON.stringify(data));
+
+    if (data.error) {
+      return res.status(400).json({ error: 'Gemini API Error', details: data.error });
+    }
+
     res.status(200).json(data);
     
   } catch (error) {
-    console.error("Backend Error:", error);
-    res.status(500).json({ error: 'Failed to generate task' });
+    console.error("Internal Crash:", error.message);
+    res.status(500).json({ error: 'INTERNAL_CRASH', message: error.message });
   }
 }
