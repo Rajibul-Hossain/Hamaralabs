@@ -198,3 +198,251 @@ export async function dispatchEmailNotification(type, recipientEmail, data) {
     console.error(`Failed to dispatch email [${type}]:`, error);
   }
 }
+import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+export async function loadStudentTAs(db, currentUID, contentArea) {
+  contentArea.innerHTML = `<div class="loader">Decrypting Mission Briefings...</div>`;
+  try {
+    const q = query(collection(db, "tinkering_activities"), where("assignedTo", "==", currentUID));
+    const snap = await getDocs(q);
+    // 2. 💎 ONE UI 9 / VISION-OS FLAGSHIP CSS
+    const studentCss = `
+      <style>
+        :root {
+          --ui-curve: cubic-bezier(0.2, 0.9, 0.2, 1); /* Samsung/Apple Fluid Easing */
+          --glass-surface: rgba(255, 255, 255, 0.75);
+          --glass-border: rgba(255, 255, 255, 0.9);
+          --ambient-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.06);
+          --accent-glow: 0 32px 64px -16px rgba(0, 122, 255, 0.2);
+        }
+
+        .stu-wrapper { 
+          font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; 
+          max-width: 1160px; margin: 0 auto; padding: 40px 20px 80px 20px; 
+          animation: stuFadeUp 0.7s var(--ui-curve); 
+        }
+
+        /* The Spring-Loaded Dynamic Heading (Kept your awesome interaction!) */
+        .stu-dynamic-heading { position: relative; display: inline-flex; flex-direction: column; height: 1.1em; overflow: hidden; cursor: default; vertical-align: bottom; }
+        .stu-heading-layer { font-size: 2.8rem; font-weight: 800; letter-spacing: -1.5px; line-height: 1.1; transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.15), opacity 0.5s ease; }
+        .stu-heading-front { color: #1c1c1e; transform: translateY(0); opacity: 1; }
+        .stu-heading-back { position: absolute; top: 0; left: 0; width: 100%; transform: translateY(100%); opacity: 0; background: linear-gradient(135deg, #007aff, #8a2be2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stu-dynamic-heading:hover .stu-heading-front { transform: translateY(-100%); opacity: 0; }
+        .stu-dynamic-heading:hover .stu-heading-back { transform: translateY(0); opacity: 1; }
+        
+        .stu-subtitle { font-size: 1.15rem; color: #8e8e93; font-weight: 500; margin-top: 8px; margin-bottom: 40px; letter-spacing: -0.2px;}
+        
+        .stu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 32px; }
+        
+        /* 🌌 The Aurora Glass Card */
+        .stu-card { 
+          background: linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.6) 100%); 
+          backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%);
+          border-radius: 36px; padding: 32px; position: relative; cursor: pointer;
+          box-shadow: var(--ambient-shadow), inset 0 2px 4px rgba(255,255,255,0.8);
+          transition: transform 0.5s var(--ui-curve), box-shadow 0.5s var(--ui-curve);
+        }
+        
+        /* The Luminous Gradient Border (Visible on Hover) */
+        .stu-card::before {
+          content: ''; position: absolute; inset: 0; border-radius: 36px; padding: 2px;
+          background: linear-gradient(135deg, rgba(0,122,255,0.6), rgba(138,43,226,0.2), transparent 60%);
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor; mask-composite: exclude;
+          opacity: 0; transition: opacity 0.6s var(--ui-curve); z-index: 1; pointer-events: none;
+        }
+
+        .stu-card:hover { 
+          transform: translateY(-8px) scale(1.02); 
+          box-shadow: var(--accent-glow), inset 0 2px 4px rgba(255,255,255,1); 
+        }
+        .stu-card:hover::before { opacity: 1; }
+        
+        /* Glowing Badges */
+        .stu-badge { 
+          position: absolute; top: 28px; right: 28px; 
+          background: rgba(0, 122, 255, 0.08); color: #007aff; 
+          padding: 8px 16px; border-radius: 100px; font-size: 0.8rem; font-weight: 800; 
+          text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 6px;
+          backdrop-filter: blur(10px); border: 1px solid rgba(0, 122, 255, 0.1);
+        }
+        .stu-badge::before { content: ''; display: block; width: 6px; height: 6px; border-radius: 50%; background: #007aff; box-shadow: 0 0 8px #007aff; }
+        .stu-badge-completed { background: rgba(52, 199, 89, 0.08); color: #28a745; border-color: rgba(52, 199, 89, 0.1); }
+        .stu-badge-completed::before { background: #28a745; box-shadow: 0 0 8px #28a745; }
+        
+        /* Typography Polish */
+        .stu-subject { font-size: 0.85rem; font-weight: 800; color: #8e8e93; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+        .stu-activity-title { font-size: 1.6rem; font-weight: 800; color: #1c1c1e; margin-bottom: 16px; line-height: 1.2; letter-spacing: -0.5px; transition: color 0.3s ease; position: relative; z-index: 2; }
+        .stu-card:hover .stu-activity-title { color: #007aff; }
+        .stu-intro { font-size: 1rem; color: #636366; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 32px; font-weight: 500; }
+        
+        /* Fluid Pill Button */
+        .stu-btn { 
+          background: rgba(118, 118, 128, 0.06); color: #1c1c1e; border: none; 
+          border-radius: 100px; padding: 16px; width: 100%; 
+          font-size: 1.05rem; font-weight: 700; transition: all 0.4s var(--ui-curve); 
+          display: flex; justify-content: center; align-items: center; gap: 8px;
+          position: relative; z-index: 2;
+        }
+        .stu-btn span { transition: transform 0.3s var(--ui-curve); }
+        .stu-card:hover .stu-btn { background: #007aff; color: #fff; box-shadow: 0 8px 24px rgba(0, 122, 255, 0.3); }
+        .stu-card:hover .stu-btn span { transform: translateX(4px) translateY(-4px); }
+
+        /* Blueprint Modal - Volumetric Glass */
+        .stu-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); z-index: 1000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.4s var(--ui-curve); }
+        .stu-modal-overlay.active { display: flex; opacity: 1; }
+        
+        .stu-modal { 
+          background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(250,250,252,0.95) 100%); 
+          width: 92%; max-width: 860px; max-height: 85vh; border-radius: 40px; 
+          box-shadow: 0 40px 80px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,1); 
+          transform: scale(0.9) translateY(40px); transition: all 0.5s var(--ui-curve); opacity: 0; 
+          overflow-y: auto; -ms-overflow-style: none; scrollbar-width: none; border: 1px solid rgba(255,255,255,0.8);
+        }
+        .stu-modal::-webkit-scrollbar { display: none; }
+        .stu-modal-overlay.active .stu-modal { transform: scale(1) translateY(0); opacity: 1; }
+        
+        .stu-modal-header { padding: 40px 40px 32px 40px; border-bottom: 1px solid rgba(0,0,0,0.04); position: sticky; top: 0; background: rgba(255,255,255,0.85); backdrop-filter: blur(30px); z-index: 10; display: flex; justify-content: space-between; align-items: flex-start;}
+        .stu-modal-body { padding: 0 40px 40px 40px; }
+        
+        .stu-close { background: rgba(118,118,128,0.1); border: none; width: 40px; height: 40px; border-radius: 20px; font-size: 1.2rem; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.3s; color: #8e8e93;}
+        .stu-close:hover { background: #e5e5ea; color: #1c1c1e; transform: rotate(90deg); }
+
+        .stu-section { margin-top: 40px; }
+        .stu-section h4 { font-size: 1.15rem; color: #1c1c1e; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;}
+        .stu-section h4 span { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: rgba(0,122,255,0.1); color: #007aff; border-radius: 10px; font-size: 1.2rem; }
+        
+        /* Interactive List Items */
+        .stu-list { list-style: none; padding: 0; margin: 0; }
+        .stu-list li { 
+          background: #ffffff; border-radius: 20px; padding: 18px 24px; margin-bottom: 12px; 
+          font-size: 1.05rem; color: #3a3a3c; font-weight: 500; border: 1px solid rgba(0,0,0,0.03); 
+          display: flex; gap: 16px; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stu-list li:hover { transform: translateX(6px); box-shadow: 0 8px 16px rgba(0,0,0,0.04); border-color: rgba(0,122,255,0.2); }
+        .stu-list li::before { content: ''; width: 8px; height: 8px; background: #007aff; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px rgba(0,122,255,0.5); }
+        
+        @keyframes stuFadeUp { from { opacity: 0; transform: translateY(30px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      </style>
+    `;
+
+    if (snap.empty) {
+      contentArea.innerHTML = `
+        ${studentCss}
+        <div class="stu-wrapper" style="text-align:center; padding-top: 100px;">
+          <div style="font-size: 4rem; margin-bottom: 20px;">🛰️</div>
+          <h2 class="stu-header-title">No Active Missions</h2>
+          <p class="stu-subtitle">Your ATL Incharge hasn't assigned any Tinkering Activities to you yet.</p>
+        </div>`;
+      return;
+    }
+
+    // 3. Build the Grid of Mission Cards
+    window.taStudentData = {}; // Store locally for the modal
+    let gridHtml = '';
+
+    snap.forEach(doc => {
+      const data = doc.data();
+      window.taStudentData[doc.id] = data;
+      const status = (data.status || 'assigned').toLowerCase();
+      const isCompleted = status === 'completed';
+      
+      gridHtml += `
+        <div class="stu-card" onclick="window.openStudentTAModal('${doc.id}')">
+          <div class="stu-badge ${isCompleted ? 'stu-badge-completed' : ''}">${isCompleted ? 'Completed' : 'Active'}</div>
+          <div class="stu-subject">${data.subject || 'Innovation'}</div>
+          <div class="stu-activity-title">${data.activityName || 'Classified Project'}</div>
+          <div class="stu-intro">${data.introduction || 'Click to view mission blueprint...'}</div>
+          <button class="stu-btn">View Blueprint <span>↗</span></button>
+        </div>
+      `;
+    });
+
+    // 4. Expose Modal Logic
+    window.openStudentTAModal = function(taId) {
+      const data = window.taStudentData[taId];
+      if (!data) return;
+
+      const buildList = (arr, icon) => {
+        if (!arr || arr.length === 0) return `<p style="color:#8e8e93; font-style:italic;">None specified.</p>`;
+        return `<ul class="stu-list">${arr.map(item => `<li><span style="display:none;">${icon}</span>${item}</li>`).join('')}</ul>`;
+      };
+
+      document.getElementById('stuModalContent').innerHTML = `
+        <div class="stu-modal-header">
+          <div>
+            <div class="stu-subject">${data.subject || 'Innovation'} • ${data.topic || 'General'}</div>
+            <h2 class="stu-header-title" style="margin-bottom:0; font-size:2rem;">${data.activityName || 'Classified Project'}</h2>
+          </div>
+          <button class="stu-close" onclick="window.closeStudentTAModal()">✕</button>
+        </div>
+        <div class="stu-modal-body">
+          <div class="stu-section">
+            <p style="font-size: 1.1rem; line-height: 1.6; color: #3a3a3c;">${data.introduction || ''}</p>
+          </div>
+          
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px;">
+            <div class="stu-section">
+              <h4>📦 Required Hardware</h4>
+              ${buildList(data.materials, '🔧')}
+            </div>
+            <div class="stu-section">
+              <h4>🎯 Mission Goals</h4>
+              ${buildList(data.goals, '🎯')}
+            </div>
+          </div>
+
+          <div class="stu-section">
+            <h4>🚀 Execution Steps</h4>
+            ${buildList(data.instructions, '➡️')}
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px;">
+            <div class="stu-section">
+              <h4>⚠️ Safety & Tips</h4>
+              ${buildList(data.tips, '💡')}
+            </div>
+            <div class="stu-section">
+              <h4>📊 Expected Observations</h4>
+              ${buildList(data.observations, '👁️')}
+            </div>
+          </div>
+          
+          <div class="stu-section" style="margin-top: 32px; text-align:center;">
+             <button onclick="alert('Submission portal coming soon!')" style="background: linear-gradient(135deg, #34c759, #28a745); color: #fff; border: none; border-radius: 24px; padding: 18px 40px; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(52, 199, 89, 0.3);">Submit Activity Report ✅</button>
+          </div>
+        </div>
+      `;
+      
+      const overlay = document.getElementById('stuModalOverlay');
+      overlay.style.display = 'flex';
+      setTimeout(() => overlay.classList.add('active'), 10);
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    };
+
+    window.closeStudentTAModal = function() {
+      const overlay = document.getElementById('stuModalOverlay');
+      overlay.classList.remove('active');
+      setTimeout(() => overlay.style.display = 'none', 300);
+      document.body.style.overflow = ''; 
+    };
+
+    // 5. Render to Screen
+    contentArea.innerHTML = `
+      ${studentCss}
+      <div class="stu-wrapper">
+        <h2 class="stu-header-title">Mission Briefings</h2>
+        <p class="stu-subtitle">Tinkering Activities assigned by your ATL Incharge.</p>
+        <div class="stu-grid">${gridHtml}</div>
+      </div>
+      
+      <div id="stuModalOverlay" class="stu-modal-overlay" onclick="if(event.target===this) window.closeStudentTAModal()">
+        <div class="stu-modal" id="stuModalContent"></div>
+      </div>
+    `;
+
+  } catch (error) {
+    console.error("Error loading student TAs:", error);
+    contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30; font-weight:600;">Failed to establish connection.</div>`;
+  }
+}

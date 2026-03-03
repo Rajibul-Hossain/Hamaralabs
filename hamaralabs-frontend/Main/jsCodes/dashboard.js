@@ -5,7 +5,8 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstati
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check.js";
 import { addCheckmarkAnimation, confettiBurst, startPremiumSparkle, regformCSS, regHTML, tinkerCSS } from "./animations.js";
 import { loadAdminOverview, loadAdminSchools, loadAdminUsers } from "./adminFxn.js";
-import { dispatchEmailNotification } from "./basicfxns.js";
+import { dispatchEmailNotification, loadStudentTAs } from "./basicfxns.js";
+import { loadInchargeOverview, loadTAForm  } from "./atlinchfxn.js";
 const firebaseConfig = {
   apiKey: "AIzaSyAPyLzaSXa1wMjD77wMi1-Z2bSvhAbFCBU",
   authDomain: "digital-atl.firebaseapp.com",
@@ -66,9 +67,18 @@ function renderSidebar(role) {
   } else if (safeRole === "student") {
     menuStructure = [
       { category: "Overview", items: ["Feature in Progress..."] },
-      { category: "My Workspace", items: ["myTasks"] }
+      { category: "My Workspace", items: ["myTasks"] },
+      {category: "Tinkering Activities", items: ["tinkeringActivities"]}
     ];
-  } else if (safeRole === "admin") { 
+  }
+  else if (safeRole === "atl-incharge") {
+    menuStructure = [
+      { category: "Lab Ops", items: ["overview"] },
+      { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },
+      {category: "Students", items:["Student Snapshot"]}
+    ];
+  } 
+  else if (safeRole === "admin") { 
     menuStructure = [
       { category: "Home", items: ["overview"] },
       { category: "Approvals", items: ["users"]},
@@ -80,7 +90,10 @@ function renderSidebar(role) {
     "overview": "Overview", "analytics": "Analytics", "schools": "School Report", "Register School": "Register School", 
     "users": "Mentors & Students", "studentReg": "Student Registration", "tasks": "Global Tasks", "announcements": "Announcements", 
     "settings": "Settings", "students": "My Students", "assignedTeams": "Assigned Schools", "sessions": "Live Sessions", 
-    "tinkerLab": "AI Activity Lab 💡", "myTasks": "My Tasks", "studentList": "Student Data", "studentSnapshot": "Student Snapshot"};
+    "tinkerLab": "AI Activity Lab 💡", "myTasks": "My Tasks", "studentList": "Student Data", "studentSnapshot": "Student Snapshot",
+  "overview": "Overview 📊","tinkeringActivities": "Tinkering Lab 🚀",
+    "Tinkering Activity Form": "TA Form 📋",
+    "tinkering activity report": "TA Report 📝"};
   menuStructure.forEach(group => {const catHeader = document.createElement("div"); 
     catHeader.className = "sidebar-category";
     catHeader.innerText = group.category; sidebar.appendChild(catHeader);
@@ -185,6 +198,29 @@ async function loadSection(section) {
   if (section === "sessions") loadSessions();
   if (section === "analytics") loadAnalytics();
   if (section === "myTasks") loadStudentTasks();
+  if (section === "tinkeringActivities") {loadStudentTAs(db, currentUID, contentArea);return;}
+  if (currentRole === "atl-incharge" || currentRole === "atl_incharge") { // Checking both just to be perfectly safe!
+    if (section === "overview") { loadInchargeOverview(db, currentUID, contentArea); return; }
+    if (section === "Student Snapshot") {
+      contentArea.innerHTML = `<div class="loader">Verifying Lab Credentials...</div>`;
+      import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js").then(({ collection, query, where, getDocs }) => {
+        getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)))
+        .then(snap => {if (snap.empty) {contentArea.innerHTML = `<div class="card" style="padding: 40px; text-align: center; color: #ef4444; font-weight: 600;">No school assigned to your profile yet. Please contact Admin.</div>`;
+            return;}
+          const mySchoolId = snap.docs[0].data().schoolId;
+          import('./adminFxn.js')
+            .then(module => module.loadStudentSnapshot(db, contentArea, mySchoolId))
+            .catch(err => console.error("Error loading Snapshot:", err));});});
+      return;}
+if (section === "Tinkering Activity Form") { 
+      loadTAForm(db, currentUID, contentArea);
+      return; 
+    }
+    if (section === "tinkering activity report") { 
+      contentArea.innerHTML = `<div class="card">TA Report Coming Soon...</div>`; 
+      return; 
+    }
+  }
   if (currentRole && currentRole.toLowerCase() === "admin") {
     if (section === "overview" || section === "adminOverview") loadAdminOverview(db, contentArea);
     if (section === "schools") loadAdminSchools(db, contentArea);

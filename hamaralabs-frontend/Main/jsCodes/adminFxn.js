@@ -1220,70 +1220,51 @@ export async function loadStudentRegistration(db, contentArea) {
     container.innerHTML = `<div style="text-align:center; padding: 40px; color: #ef4444; font-weight:600;">Failed to load directory. Check console.</div>`;
   }
 }
-export async function loadStudentSnapshot(db, contentArea) {
+export async function loadStudentSnapshot(db, contentArea, restrictedSchoolId = null) {
   const container = contentArea || document.getElementById("dashboardContent");
   if (!container) return;
-
   container.innerHTML = `<div style="text-align:center; padding: 80px; color: #71717a; font-family: 'Plus Jakarta Sans', sans-serif;">Aggregating Global Snapshot...</div>`;
+  const safeStr = (str) => {if (!str) return '';
+    return String(str).replace(/[&<>"']/g, function(m) {return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[m];});};
+  try {const { collection, query, where, getDocs, doc, getDoc, deleteDoc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    // Bind  globally so the detail modal can fetch data
+    window.snapshotDb = db;window.snapshotGetDoc = getDoc;window.snapshotDocRef = doc;
 
-  const safeStr = (str) => {
-    if (!str) return '';
-    return String(str).replace(/[&<>"']/g, function(m) {
-      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[m];
-    });
-  };
-
-  try {
-    const { collection, query, where, getDocs, doc, getDoc, deleteDoc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-    
-    // Bind these globally so the detail modal can fetch data
-    window.snapshotDb = db;
-    window.snapshotGetDoc = getDoc;
-    window.snapshotDocRef = doc;
-
-    // 1. Fetch Data
+    //  If an Incharge calls this, only fetch THEIR students
+    const studentQuery = restrictedSchoolId 
+      ? query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", restrictedSchoolId))
+      : query(collection(db, "users"), where("role", "==", "student"));
     const [schoolsSnap, studentsSnap, tasksSnap] = await Promise.all([
       getDocs(collection(db, "schools")),
-      getDocs(query(collection(db, "users"), where("role", "==", "student"))),
-      getDocs(collection(db, "tasks"))
-    ]);
-
+      getDocs(studentQuery),
+      getDocs(collection(db, "tasks")) ]);
     const dataArchitecture = {};
     window.snapshotStudents = {}; 
     window.allStudentsList = [];  
-
-    // 2. Build School Options for the Filter
     let schoolFilterOptions = `<option value="all">All Institutions</option>`;
     schoolsSnap.forEach(doc => {
       const sName = doc.data().schoolName || doc.data().name || "Unnamed School";
       dataArchitecture[doc.id] = { schoolName: sName, students: {} };
-      schoolFilterOptions += `<option value="${doc.id}">${safeStr(sName)}</option>`;
-    });
-    
+      schoolFilterOptions += `<option value="${doc.id}">${safeStr(sName)}</option>`;});
     dataArchitecture["unassigned"] = { schoolName: "Unassigned / Independent", students: {} };
     schoolFilterOptions += `<option value="unassigned">Unassigned / Independent</option>`;
-
     const studentToSchoolMap = {};
-    studentsSnap.forEach(doc => {
-      const d = doc.data();
+    studentsSnap.forEach(doc => {const d = doc.data();
       const sId = d.schoolId && dataArchitecture[d.schoolId] ? d.schoolId : "unassigned";
       const studentObj = { id: doc.id, name: d.name || "Unknown Student", email: d.email || "", tasks: [] };
       dataArchitecture[sId].students[doc.id] = studentObj;
       window.snapshotStudents[doc.id] = studentObj;
       window.allStudentsList.push({ id: doc.id, name: studentObj.name });
       studentToSchoolMap[doc.id] = sId;});
-    tasksSnap.forEach(doc => {
-      const t = doc.data();
-      const studentId = t.studentId;
+    tasksSnap.forEach(doc => {const t = doc.data(); const studentId = t.studentId;
+      // restricted the studentsSnap, tasks for other students are  ignored here!
       if (studentId && studentToSchoolMap[studentId]) {const sId = studentToSchoolMap[studentId];
         dataArchitecture[sId].students[studentId].tasks.push({ id: doc.id, ...t });}});
     let htmlContent = '';
     for (const [schoolId, schoolData] of Object.entries(dataArchitecture)) {
       const studentKeys = Object.keys(schoolData.students);
-      if (studentKeys.length === 0) continue; 
-      let schoolTotalTasks = 0;
-      let schoolCompletedTasks = 0;
-      let studentsHTML = '';
+      if (studentKeys.length === 0) continue; //  skips empty schools!
+      let schoolTotalTasks = 0; let schoolCompletedTasks = 0; let studentsHTML = '';
       studentKeys.forEach(studentId => {
         const student = schoolData.students[studentId];
         const totalTasks = student.tasks.length;
@@ -1309,50 +1290,42 @@ export async function loadStudentSnapshot(db, contentArea) {
             if (status === 'in progress') statusColor = '#3b82f6'; 
             tasksPreviewHTML += `<div class="snap-task-item"><div class="snap-task-dot" style="background-color: ${statusColor};"></div><div class="snap-task-title">${safeStr(task.title || 'Untitled')}</div></div>`;
           });
-          if (totalTasks > 3) tasksPreviewHTML += `<div style="font-size:0.75rem; color:#64748b; margin-top:6px; font-weight:600;">+ ${totalTasks - 3} more tasks</div>`;
-        }
-
+          if (totalTasks > 3) tasksPreviewHTML += `<div style="font-size:0.75rem; color:#64748b; margin-top:6px; font-weight:600;">+ ${totalTasks - 3} more tasks</div>`;}
         studentsHTML += `
           <div class="snap-student-card" data-search="${searchStr}" data-status="${statusCategory}" onclick="window.openStudentTaskModal(event, '${studentId}')">
             <div class="snap-student-header">
               <div class="snap-avatar">${avatarLetter}</div>
               <div style="flex:1;">
                 <div class="snap-student-name">${safeStr(student.name)}</div>
-                <div class="snap-student-meta">${totalTasks} Tasks • ${progressPct}% Done</div>
-              </div>
-            </div>
+                <div class="snap-student-meta">${totalTasks} Tasks • ${progressPct}% Done</div></div></div>
             <div class="snap-progress-track">
-              <div class="snap-progress-fill" style="width: ${progressPct}%;"></div>
-            </div>
-            <div class="snap-task-list">${tasksPreviewHTML}</div>
-          </div>
-        `;
-      });
+              <div class="snap-progress-fill" style="width: ${progressPct}%;"></div></div>
+            <div class="snap-task-list">${tasksPreviewHTML}</div></div>`;});
 
       const schoolProgress = schoolTotalTasks === 0 ? 0 : Math.round((schoolCompletedTasks / schoolTotalTasks) * 100);
       htmlContent += `<div class="snap-school-block" data-school="${schoolId}">
           <div class="snap-school-trigger" onclick="this.parentElement.classList.toggle('active')">
             <div class="snap-school-info">
               <h3>${safeStr(schoolData.schoolName)}</h3>
-              <span class="snap-school-badge">${studentKeys.length} Students Enrolled</span>
-            </div>
+              <span class="snap-school-badge">${studentKeys.length} Students Enrolled</span></div>
             <div class="snap-school-metrics">
               <div class="snap-metric"><span class="snap-metric-val">${schoolProgress}%</span><span class="snap-metric-lbl">Completion</span></div>
               <div class="snap-arrow"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div>
-            </div>
-          </div>
+            </div></div>
           <div class="snap-school-content"><div class="snap-school-content-inner"><div class="snap-student-grid">${studentsHTML}</div></div></div>
         </div>`;
     }
     
     if (!htmlContent) htmlContent = `<div style="text-align:center; padding: 60px; color:#71717a; font-weight:600;">No student data available.</div>`;
+
+    // Hide the School Dropdown if they are restricted to one school
+    const dropdownDisplay = restrictedSchoolId ? 'none' : 'block';
     
     container.innerHTML = `
-      ${csss}
-      <div class="snap-theme-container">
+      ${typeof csss !== 'undefined' ? csss : ''} <div class="snap-theme-container">
         <div class="snap-header">
           <h2>Student Snapshot</h2>
-          <p>Task progression across all institutions.</p>
+          <p>${restrictedSchoolId ? "Task progression for your laboratory." : "Task progression across all institutions."}</p>
         </div>
 
         <div class="snap-controls">
@@ -1360,9 +1333,11 @@ export async function loadStudentSnapshot(db, contentArea) {
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             <input type="text" id="snapGlobalSearch" class="snap-search" placeholder="Search by student name or email..." onkeyup="window.filterSnapshot()">
           </div>
-          <select id="snapFilterSchool" class="snap-filter" onchange="window.filterSnapshot()">
+          
+          <select id="snapFilterSchool" class="snap-filter" onchange="window.filterSnapshot()" style="display: ${dropdownDisplay};">
             ${schoolFilterOptions}
           </select>
+          
           <select id="snapFilterProgress" class="snap-filter" onchange="window.filterSnapshot()">
             <option value="all">All Progress Statuses</option>
             <option value="completed">100% Completed</option>
@@ -1400,8 +1375,6 @@ export async function loadStudentSnapshot(db, contentArea) {
         </div>
       </div>
     `;
-
-    // --- JS LOGIC --- //
 
     window.filterSnapshot = function() {
       const searchInput = document.getElementById("snapGlobalSearch").value.toLowerCase();
