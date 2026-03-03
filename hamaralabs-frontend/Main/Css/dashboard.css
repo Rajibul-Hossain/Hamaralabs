@@ -315,7 +315,7 @@ body{display:flex;height:100vh;background:#f6f8fc;}
 .settings-Btn {
   position: fixed;     /* Locks to viewport */
   top: 12px;           /* Distance from top */
-  right: 190px;         /* Distance from right */
+  right: 240px;         /* Distance from right */
 
   background: #f8fafc;
   border-radius: 50%;
@@ -328,7 +328,7 @@ body{display:flex;height:100vh;background:#f6f8fc;}
 
   transition: all 0.3s ease;
   cursor: pointer;
-  z-index: 1000;       /* Ensures it stays above other elements */
+        /* Ensures it stays above other elements */
 }
 .settings-Btn:hover {
   background: #e2e8f0;
