@@ -198,13 +198,13 @@ export async function dispatchEmailNotification(type, recipientEmail, data) {
     console.error(`Failed to dispatch email [${type}]:`, error);
   }
 }
-import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+//studentttttttttttttttt
+import { collection, query, where, getDocs, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 export async function loadStudentTAs(db, currentUID, contentArea) {
-  contentArea.innerHTML = `<div class="loader">Decrypting Mission Briefings...</div>`;
+  contentArea.innerHTML = `<div class="loader">Loading...</div>`;
   try {
     const q = query(collection(db, "tinkering_activities"), where("assignedTo", "==", currentUID));
     const snap = await getDocs(q);
-    // 2. 💎 ONE UI 9 / VISION-OS FLAGSHIP CSS
     const studentCss = `
       <style>
         :root {
@@ -308,7 +308,7 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         .stu-close:hover { background: #e5e5ea; color: #1c1c1e; transform: rotate(90deg); }
 
         .stu-section { margin-top: 40px; }
-        .stu-section h4 { font-size: 1.15rem; color: #1c1c1e; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;}
+        .stu-section h4 { font-size: 1.15rem; color: #1c1c1e; justify-content: center;  font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;}
         .stu-section h4 span { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: rgba(0,122,255,0.1); color: #007aff; border-radius: 10px; font-size: 1.2rem; }
         
         /* Interactive List Items */
@@ -318,14 +318,11 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
           font-size: 1.05rem; color: #3a3a3c; font-weight: 500; border: 1px solid rgba(0,0,0,0.03); 
           display: flex; gap: 16px; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
+  }
         .stu-list li:hover { transform: translateX(6px); box-shadow: 0 8px 16px rgba(0,0,0,0.04); border-color: rgba(0,122,255,0.2); }
         .stu-list li::before { content: ''; width: 8px; height: 8px; background: #007aff; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px rgba(0,122,255,0.5); }
-        
         @keyframes stuFadeUp { from { opacity: 0; transform: translateY(30px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-      </style>
-    `;
-
+      </style>`;
     if (snap.empty) {
       contentArea.innerHTML = `
         ${studentCss}
@@ -353,13 +350,12 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
           <div class="stu-subject">${data.subject || 'Innovation'}</div>
           <div class="stu-activity-title">${data.activityName || 'Classified Project'}</div>
           <div class="stu-intro">${data.introduction || 'Click to view mission blueprint...'}</div>
-          <button class="stu-btn">View Blueprint <span>↗</span></button>
+          <button class="stu-btn">View Details <span>↗</span></button>
         </div>
       `;
     });
 
-    // 4. Expose Modal Logic
-    window.openStudentTAModal = function(taId) {
+window.openStudentTAModal = function(taId) {
       const data = window.taStudentData[taId];
       if (!data) return;
 
@@ -368,68 +364,113 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         return `<ul class="stu-list">${arr.map(item => `<li><span style="display:none;">${icon}</span>${item}</li>`).join('')}</ul>`;
       };
 
+      const status = data.status || 'assigned';
+      let actionAreaHtml = '';
+
+      // State Engine for the bottom action area
+      if (status === 'completed') {
+        actionAreaHtml = `
+          <div style="background: rgba(52, 199, 89, 0.1); border: 1px solid rgba(52, 199, 89, 0.2); border-radius: 24px; padding: 24px; text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 8px;">🏆</div>
+            <h4 style="color: #28a745; margin: 0 0 8px 0; font-size: 1.2rem;">Mission Accomplished</h4>
+            <p style="color: #28a745; opacity: 0.8; margin: 0; font-weight: 500;">Your ATL Incharge has verified this activity.</p>
+          </div>
+        `;
+      } else if (status === 'submitted') {
+        actionAreaHtml = `
+          <div style="background: rgba(0, 122, 255, 0.08); border: 1px solid rgba(0, 122, 255, 0.15); border-radius: 24px; padding: 24px; text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 8px; animation: atlSpin 2s linear infinite;">⏳</div>
+            <h4 style="color: #007aff; margin: 0 0 8px 0; font-size: 1.2rem;">Under Review</h4>
+            <p style="color: #007aff; opacity: 0.8; margin: 0; font-weight: 500;">Awaiting verification from Lab Command.</p>
+          </div>
+        `;
+      } else {
+        actionAreaHtml = `
+          <div id="stu-submit-trigger-${taId}">
+            <button onclick="document.getElementById('stu-submit-trigger-${taId}').style.display='none'; document.getElementById('stu-submit-form-${taId}').style.display='block';" 
+                    style="background: linear-gradient(135deg, #007aff, #005bb5); color: #fff; border: none; border-radius: 100px; padding: 20px 60px; font-size: 1.15rem; font-weight: 800; cursor: pointer; box-shadow: 0 20px 40px rgba(0, 122, 255, 0.3); transition: transform 0.3s ease; width: 100%;">
+              Log Mission Results 🚀
+            </button>
+          </div>
+          
+          <div id="stu-submit-form-${taId}" style="display: none; background: #f9f9fb; border-radius: 28px; padding: 32px; border: 1px solid rgba(0,0,0,0.05); animation: stuFadeUp 0.4s ease;">
+            <h4 style="font-size: 1.2rem; color: #1c1c1e; margin: 0 0 16px 0; font-weight: 800;">Upload Telemetry</h4>
+            
+            <label style="display:block; font-size: 0.9rem; font-weight: 700; color: #8e8e93; margin-bottom: 8px;">Project Evidence (Drive/Video Link)</label>
+            <input type="url" id="ta-stu-link-${taId}" placeholder="https://..." style="width: 100%; box-sizing: border-box; background: #fff; border: 2px solid transparent; border-radius: 16px; padding: 16px; font-size: 1rem; color: #1c1c1e; outline: none; transition: 0.3s; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onfocus="this.style.borderColor='#007aff'">
+            
+            <label style="display:block; font-size: 0.9rem; font-weight: 700; color: #8e8e93; margin-bottom: 8px;">Field Notes & Observations</label>
+            <textarea id="ta-stu-notes-${taId}" placeholder="What did you learn? Did you face any issues?" style="width: 100%; box-sizing: border-box; background: #fff; border: 2px solid transparent; border-radius: 16px; padding: 16px; font-size: 1rem; color: #1c1c1e; outline: none; transition: 0.3s; margin-bottom: 24px; min-height: 100px; resize: vertical; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onfocus="this.style.borderColor='#007aff'"></textarea>
+            
+            <button onclick="window.submitTAMission('${taId}')" id="btn-submit-${taId}" style="background: #0099ff; color: #fff; border: none; border-radius: 100px; padding: 18px; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(52, 140, 199, 0.3); width: 100%; transition: 0.2s;">
+              Upload 📡
+            </button>
+          </div>
+        `;
+      }
+
       document.getElementById('stuModalContent').innerHTML = `
-        <div class="stu-modal-header">
-          <div>
-            <div class="stu-subject">${data.subject || 'Innovation'} • ${data.topic || 'General'}</div>
-            <h2 class="stu-header-title" style="margin-bottom:0; font-size:2rem;">${data.activityName || 'Classified Project'}</h2>
-          </div>
-          <button class="stu-close" onclick="window.closeStudentTAModal()">✕</button>
-        </div>
-        <div class="stu-modal-body">
-          <div class="stu-section">
-            <p style="font-size: 1.1rem; line-height: 1.6; color: #3a3a3c;">${data.introduction || ''}</p>
-          </div>
-          
-          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px;">
-            <div class="stu-section">
-              <h4>📦 Required Hardware</h4>
-              ${buildList(data.materials, '🔧')}
+        <div class="stu-modal-content-scroll">
+          <div class="stu-modal-header">
+            <div>
+              <div class="stu-subject">${data.subject || 'Innovation'} • ${data.topic || 'General'}</div>
+              <h2 class="stu-heading-layer" style="margin-bottom:0; font-size:2.4rem; color:#1c1c1e;">${data.activityName || 'Classified Project'}</h2>
             </div>
-            <div class="stu-section">
-              <h4>🎯 Mission Goals</h4>
-              ${buildList(data.goals, '🎯')}
-            </div>
+            <button class="stu-close" onclick="window.closeStudentTAModal()">✕</button>
           </div>
+          <div class="stu-modal-body">
+            <div class="stu-section" style="margin-top: 24px;">
+              <p style="font-size: 1.15rem; line-height: 1.7; color: #3a3a3c; font-weight: 500;">${data.introduction || ''}</p>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px;">
+              <div class="stu-section"><h4><span>📦</span> Required Hardware</h4>${buildList(data.materials, '')}</div>
+              <div class="stu-section"><h4><span>🎯</span> Mission Goals</h4>${buildList(data.goals, '')}</div>
+            </div>
 
-          <div class="stu-section">
-            <h4>🚀 Execution Steps</h4>
-            ${buildList(data.instructions, '➡️')}
-          </div>
+            <div class="stu-section"><h4><span>🚀</span> Execution Steps</h4>${buildList(data.instructions, '')}</div>
 
-          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px;">
-            <div class="stu-section">
-              <h4>⚠️ Safety & Tips</h4>
-              ${buildList(data.tips, '💡')}
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px;">
+              <div class="stu-section"><h4><span>⚠️</span> Safety & Tips</h4>${buildList(data.tips, '')}</div>
+              <div class="stu-section"><h4><span>📊</span> Expected Observations</h4>${buildList(data.observations, '')}</div>
             </div>
-            <div class="stu-section">
-              <h4>📊 Expected Observations</h4>
-              ${buildList(data.observations, '👁️')}
-            </div>
-          </div>
-          
-          <div class="stu-section" style="margin-top: 32px; text-align:center;">
-             <button onclick="alert('Submission portal coming soon!')" style="background: linear-gradient(135deg, #34c759, #28a745); color: #fff; border: none; border-radius: 24px; padding: 18px 40px; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(52, 199, 89, 0.3);">Submit Activity Report ✅</button>
-          </div>
-        </div>
-      `;
+        <div class="stu-section" style="margin-top: 60px;">${actionAreaHtml}</div></div></div>`;
       
       const overlay = document.getElementById('stuModalOverlay');
       overlay.style.display = 'flex';
-      setTimeout(() => overlay.classList.add('active'), 10);
-      document.body.style.overflow = 'hidden'; // Prevent background scrolling
-    };
+      requestAnimationFrame(() => overlay.classList.add('active'));};
+    window.submitTAMission = async function(taId) {
+      const btn = document.getElementById(`btn-submit-${taId}`);
+      const linkVal = document.getElementById(`ta-stu-link-${taId}`).value.trim();
+      const notesVal = document.getElementById(`ta-stu-notes-${taId}`).value.trim();
 
+      if (!linkVal && !notesVal) {
+        alert("Please provide either a project link or field notes to submit.");
+        return;}
+      btn.innerText = "Uploading⏳";
+      btn.disabled = true;
+      try {
+        await updateDoc(doc(db, "tinkering_activities", taId), {
+          status: 'submitted',
+          submissionURL: linkVal,
+          studentNotes: notesVal,
+          submittedAt: serverTimestamp()});
+        window.taStudentData[taId].status = 'submitted';
+        window.taStudentData[taId].submissionURL = linkVal;
+        window.taStudentData[taId].studentNotes = notesVal;
+        btn.innerText = "Uploaded Successfullly ✅";
+        btn.style.background = "#007aff";
+        setTimeout(() => { window.openStudentTAModal(taId); }, 1500);
+      } catch (err) {console.error("Submission error:", err);
+        alert("Transmission failed. Please try again.");
+        btn.innerText = "Transmit Data 📡";
+        btn.disabled = false;}};
     window.closeStudentTAModal = function() {
       const overlay = document.getElementById('stuModalOverlay');
       overlay.classList.remove('active');
       setTimeout(() => overlay.style.display = 'none', 300);
-      document.body.style.overflow = ''; 
-    };
-
-    // 5. Render to Screen
-    contentArea.innerHTML = `
-      ${studentCss}
+      document.body.style.overflow = ''; };
+    contentArea.innerHTML = `${studentCss}
       <div class="stu-wrapper">
         <h2 class="stu-header-title">Mission Briefings</h2>
         <p class="stu-subtitle">Tinkering Activities assigned by your ATL Incharge.</p>
