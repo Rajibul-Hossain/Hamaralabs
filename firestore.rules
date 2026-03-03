@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isMentor() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'mentor';
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // Allows user to create their own profile during sign-up, and Admins/Mentors to update
+      allow create, update: if isOwner(userId) || isAdmin() || isMentor();
+      allow delete: if isAdmin();
+    }
+    // Typo Fallback
+    match /user/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /schools/{schoolId} {
+      // Allows reading for dropdowns, and create/update for the Auth onboarding flow
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    // Typo Fallback
+    match /school/{schoolId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /mentorSchoolAssignments/{assignmentId} {
+      // Allows mentors to read and assign themselves during onboarding
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    match /tasks/{taskId} {
+      // Students read/update progress, Mentors create/read tasks
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin() || isMentor();
+      
+      match /doubts/{doubtId} {
+        // Students create doubts, Mentors read and update them with replies
+        allow read, create, update: if isAuthenticated();
+        allow delete: if isAdmin() || isMentor();
+      }
+    }
+    // Typo Fallback
+    match /task/{taskId} {
+      allow read, write: if isAuthenticated();
+    }
+    // Prevents crashes on system collections like notifications or settings
+    match /{document=**} {
+      allow read: if isAuthenticated();
+    }
+  }
+}

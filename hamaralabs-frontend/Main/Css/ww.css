@@ -1,6 +1,3 @@
-/* ============================= */
-/* CREATE SESSION MAIN CARD     */
-/* ============================= */
 
 .icard {
   position: relative;
@@ -25,7 +22,6 @@
     0 8px 22px rgba(15, 23, 42, 0.06);
 }
 
-/* gradient border glow */
 .icard::before {
   content: "";
   position: absolute;
@@ -46,9 +42,6 @@
   pointer-events: none;
 }
 
-/* ============================= */
-/* TITLE                        */
-/* ============================= */
 
 .icard-title {
   font-size: 1.55rem;
@@ -60,10 +53,6 @@
   transform: translateY(12px);
   animation: titleReveal 0.8s ease forwards 0.25s;
 }
-
-/* ============================= */
-/* INPUT FIELDS                 */
-/* ============================= */
 
 .sessiontitle,
 .sessiondate {
@@ -89,7 +78,6 @@
   font-weight: 500;
 }
 
-/* focus state */
 .sessiontitle:focus,
 .sessiondate:focus {
   border-color: rgba(15, 23, 42, 0.18);
@@ -99,7 +87,6 @@
   transform: scale(1.02);
 }
 
-/* date input clean iOS feel */
 .sessiondate {
   appearance: none;
   cursor: pointer;
@@ -138,9 +125,6 @@
   box-shadow: 0 6px 15px rgba(15, 23, 42, 0.1);
 }
 
-/* ============================= */
-/* UPCOMING SESSIONS CARD       */
-/* ============================= */
 
 .i-card {
   margin-top: 2.4rem;
@@ -160,8 +144,6 @@
   box-shadow:
     0 28px 70px rgba(15, 23, 42, 0.09);
 }
-
-/* title */
 .card-title {
   font-size: 1.4rem;
   font-weight: 700;
@@ -173,10 +155,6 @@
   animation: titleReveal 0.8s ease forwards 0.3s;
 }
 
-/* ============================= */
-/* SESSION LIST AREA            */
-/* ============================= */
-
 .ui {
   display: flex;
   flex-direction: column;
@@ -185,7 +163,6 @@
   transition: all 0.4s ease;
 }
 
-/* empty state */
 .ui:empty::after {
   content: "No sessions scheduled yet.";
   font-size: 0.92rem;
@@ -197,9 +174,6 @@
   animation: fadeIn 0.6s ease;
 }
 
-/* ============================= */
-/* ANIMATIONS                   */
-/* ============================= */
 
 @keyframes icardFade {
   from {
@@ -223,9 +197,6 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
-/* ============================= */
-/* SESSION TITLE INPUT          */
-/* ============================= */
 
 #sessionTitle {
   width: 100%;
@@ -260,10 +231,6 @@
 }
 
 
-/* ============================= */
-/* SESSION DATE INPUT           */
-/* ============================= */
-
 #sessionDate {
   width: 100%;
   padding: 1rem 1.25rem;
@@ -294,15 +261,11 @@
 }
 
 
-/* ============================= */
-/* CREATE BUTTON                */
-/* ============================= */
-
 #createSessionBtn {
-  display: block;              /* allows centering */
-  width: 260px;                /* reduced width */
+  display: block;              
+  width: 260px;               
   padding: 0.9rem 1rem;
-  margin: 2rem auto;           /* centers horizontally */
+  margin: 2rem auto;           
   border-radius: 26px;
   border: none;
   font-size: 1rem;
@@ -320,22 +283,19 @@
   position: relative;
 }
 
-/* Hover effect */
 #createSessionBtn:hover {
-  background: linear-gradient(135deg, #3b82f6, #1e3a8a); /* blue → dark blue */
+  background: linear-gradient(135deg, #3b82f6, #1e3a8a); 
   color: white;
-  transform: scale(1.08);        /* zoom effect */
+  transform: scale(1.08);       
   box-shadow:
     0 15px 40px rgba(30,58,138,0.4),
     0 0 15px rgba(59,130,246,0.5);
 }
 
-/* Click press effect */
 #createSessionBtn:active {
   transform: scale(0.98);
 }
 
-/* premium shine sweep */
 #createSessionBtn::before {
   content: "";
   position: absolute;
@@ -374,9 +334,6 @@
   cursor: pointer;
   width: 100%;
 }
-/* ==========================================================================
-   SCOPED VARIABLES & MODAL OVERLAY (iOS Blur + One UI Structure)
-   ========================================================================== */
 
 #assignTaskModal {
   --sys-blue: #007aff;
@@ -418,9 +375,6 @@
   pointer-events: none;
 }
 
-/* ==========================================================================
-   MODAL CONTENT CARD
-   ========================================================================== */
 
 #assignTaskModal .modal-content {
   background-color: var(--surface-bg);
@@ -449,9 +403,6 @@
   text-align: center;
 }
 
-/* ==========================================================================
-   INPUTS, TEXTAREA, AND SELECT (Unified Styles)
-   ========================================================================== */
 
 #assignTaskModal input[type="text"],
 #assignTaskModal textarea,
@@ -476,7 +427,6 @@
   color: var(--text-muted);
 }
 
-/* Focus States (iOS style highlight) */
 #assignTaskModal input[type="text"]:focus,
 #assignTaskModal textarea:focus,
 #assignTaskModal input[type="date"]:focus,
@@ -486,10 +436,6 @@
   border-color: var(--sys-blue);
   box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
 }
-
-/* ==========================================================================
-   SPECIFIC INPUT ADJUSTMENTS
-   ========================================================================== */
 
 #assignTaskModal textarea {
   resize: vertical;
@@ -512,7 +458,6 @@
   opacity: 1;
 }
 
-/* Custom Dropdown Arrow for Select */
 #assignTaskModal select {
   cursor: pointer;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
@@ -521,10 +466,6 @@
   background-size: 16px;
   padding-right: 48px;
 }
-
-/* ==========================================================================
-   PRIMARY BUTTON (One UI Pill Style)
-   ========================================================================== */
 
 #assignTaskModal .primary-btn {
   appearance: none;
@@ -541,7 +482,7 @@
   border-radius: var(--radius-button);
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-  /* Subtle drop shadow for depth */
+  /* ddrop shadow  */
   box-shadow: 0 4px 12px rgba(0, 122, 255, 0.25);
 }
 
@@ -553,7 +494,7 @@
   transform: scale(0.96);
   box-shadow: 0 2px 6px rgba(0, 122, 255, 0.2);
 }
-/* ===== MARK COMPLETE BUTTON ===== */
+
 
 button[onclick^="markCompleted"] {
   background: linear-gradient(145deg, #ffffff, #f2f2f7);
@@ -584,8 +525,6 @@ button[onclick^="markCompleted"]:active {
     0 2px 8px rgba(0,0,0,0.06),
     inset 0 2px 6px rgba(0,0,0,0.08);
 }
-
-/* Completed state glow (auto if 100% progress text nearby) */
 button[onclick^="markCompleted"].completed {
   background: linear-gradient(145deg, #e9f9ee, #d4f4de);
   color: #1a7f37;
@@ -593,11 +532,6 @@ button[onclick^="markCompleted"].completed {
   box-shadow:
     0 6px 20px rgba(26,127,55,0.15);
 }
-
-
-
-/* ===== FILE INPUT (Choose File) ===== */
-
 input[type="file"] {
   position: relative;
   display: inline-block;
@@ -614,7 +548,6 @@ input[type="file"] {
     0 4px 14px rgba(0,0,0,0.05),
     inset 0 -2px 4px rgba(0,0,0,0.02);
 }
-
 input[type="file"]::file-selector-button {
   background: #007aff;
   color: white;
@@ -633,7 +566,6 @@ input[type="file"]::file-selector-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(0,122,255,0.3);
 }
-
 input[type="file"]::file-selector-button:active {
   transform: scale(0.96);
 }
@@ -649,10 +581,6 @@ input[type="file"]:focus {
     0 0 0 3px rgba(0,122,255,0.15),
     0 6px 18px rgba(0,0,0,0.08);
 }
-/* =========================
-   ULTRA PREMIUM COMPLETED
-========================= */
-
 button.completed {
 
   position: relative;
@@ -686,7 +614,6 @@ button.completed {
     metallicSweep 4s linear infinite;
 }
 
-/* 3D Morph Entrance */
 
 @keyframes morphPop {
   0% {
@@ -701,8 +628,6 @@ button.completed {
     opacity: 1;
   }
 }
-
-/* Metallic Apple Wallet Shine */
 
 button.completed::before {
 
@@ -730,7 +655,6 @@ button.completed::before {
   100% { background-position: 200% 0; }
 }
 
-/* Soft 3D Breathing Glow */
 
 button.completed {
   animation: glowPulse 2.8s ease-in-out infinite;
@@ -753,13 +677,6 @@ button.completed {
       inset 0 0 8px rgba(255,255,255,0.7);
   }
 }
-/* ==========================================================================
-   ULTRA-PREMIUM iOS & ONE UI BUTTON (Identifier Specific)
-   ========================================================================== */
-
-/* 1. KEYFRAME ANIMATIONS (Entrance, Breathing, and Shine) */
-
-/* Silky smooth iOS-style entrance */
 @keyframes iosLinkEntrance {
   0% {
     opacity: 0;
@@ -773,7 +690,6 @@ button.completed {
   }
 }
 
-/* Continuous ultra-subtle ambient pulse (Samsung One UI glow) */
 @keyframes iosLinkBreathingGlow {
   0%, 100% {
     box-shadow: 
@@ -788,8 +704,6 @@ button.completed {
       inset 0 -1px 2px rgba(0, 0, 0, 0.01);
   }
 }
-
-/* High-performance GPU-accelerated shine sweep */
 @keyframes iosLinkShineSweep {
   0% { 
     transform: translateX(-150%) skewX(-15deg); 
@@ -799,16 +713,12 @@ button.completed {
   }
 }
 
-/* ==========================================================================
-   2. MAIN COMPONENT STYLES
-   ========================================================================== */
 
 a.ios-view-link {
-  /* Reset to prevent any global bleed */
+  
   all: unset;
   box-sizing: border-box;
   
-  /* Layout */
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -816,19 +726,16 @@ a.ios-view-link {
   padding: 14px 28px;
   margin-top: 8px;
   
-  /* Typography (SF Pro / One UI style) */
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: #007aff; /* iOS System Blue */
+  color: #007aff; 
   text-decoration: none;
   cursor: pointer;
   
-  /* Shape (Pill radius for One UI / iOS modern look) */
   border-radius: 9999px;
   
-  /* Advanced Glassmorphism Base */
   background: linear-gradient(
     135deg, 
     rgba(255, 255, 255, 0.85) 0%, 
@@ -837,24 +744,17 @@ a.ios-view-link {
   backdrop-filter: blur(32px) saturate(200%);
   -webkit-backdrop-filter: blur(32px) saturate(200%);
   
-  /* Crisp sub-pixel border */
   border: 1px solid rgba(255, 255, 255, 0.8);
   
-  /* Combine Entrance and Continuous Breathing animations */
   animation: 
     iosLinkEntrance 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards,
     iosLinkBreathingGlow 4s ease-in-out infinite alternate;
   
-  /* Prevent jagged edges during animation */
   overflow: hidden;
   z-index: 1;
   transform: translateZ(0); /* Force hardware acceleration */
   will-change: transform, box-shadow, background, filter;
   
-  /* The "Master Transition":
-    Using a dramatic cubic-bezier for the iOS Spring effect on transform,
-    while keeping color and background transitions smooth and linear.
-  */
   transition: 
     transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -863,9 +763,6 @@ a.ios-view-link {
     filter 0.4s ease;
 }
 
-/* ==========================================================================
-   3. SHINE LAYER (Pseudo-element)
-   ========================================================================== */
 
 a.ios-view-link::before {
   content: "";
@@ -874,8 +771,6 @@ a.ios-view-link::before {
   left: 0;
   width: 100%;
   height: 100%;
-  
-  /* Creates the sharp angled light beam */
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0%,
@@ -890,15 +785,11 @@ a.ios-view-link::before {
   transition: opacity 0.3s ease;
 }
 
-/* ==========================================================================
-   4. HOVER STATE (Lift & Illuminate)
-   ========================================================================== */
 
 a.ios-view-link:hover {
-  /* Lift up and scale slightly */
+ 
   transform: translateY(-3px) scale(1.02);
   
-  /* Intensify the glass and color */
   background: linear-gradient(
     135deg, 
     rgba(255, 255, 255, 0.95) 0%, 
@@ -906,10 +797,8 @@ a.ios-view-link:hover {
   );
   color: #005bb5;
   
-  /* Pause the breathing animation to respect the user's focus */
   animation-play-state: paused;
   
-  /* Deep, multi-layered dramatic shadow */
   box-shadow: 
     0 24px 48px -12px rgba(0, 122, 255, 0.3),
     0 12px 24px -8px rgba(0, 122, 255, 0.2),
@@ -917,15 +806,11 @@ a.ios-view-link:hover {
     inset 0 -2px 6px rgba(0, 0, 0, 0.03);
 }
 
-/* Fire the shine keyframe on hover */
 a.ios-view-link:hover::before {
   opacity: 1;
   animation: iosLinkShineSweep 0.85s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
-/* ==========================================================================
-   5. ACTIVE STATE (The One UI Tactile "Squish")
-   ========================================================================== */
 
 a.ios-view-link:active {
   transform: translateY(1px) scale(0.95);
@@ -939,7 +824,6 @@ a.ios-view-link:active {
   filter: brightness(0.96);
   color: #004494;
 }
-/* ===== DOUBT CONTAINER ===== */
 div.ios-doubt-box {
 
   margin-top: 24px;
@@ -968,9 +852,6 @@ div.ios-doubt-box:hover {
   box-shadow:
     0 30px 60px rgba(0,0,0,0.08);
 }
-
-
-/* ===== HEADER ===== */
 div.ios-doubt-header {
 
   display: flex;
@@ -978,7 +859,6 @@ div.ios-doubt-header {
   gap: 12px;
 
   margin-bottom: 16px;
-
 }
 
 div.ios-doubt-icon {
@@ -1012,8 +892,6 @@ div.ios-doubt-title {
 
 }
 
-
-/* ===== TEXTAREA ===== */
 textarea.ios-doubt-textarea {
 
   width: 100%;
@@ -1056,7 +934,6 @@ textarea.ios-doubt-textarea:focus {
 }
 
 
-/* ===== FOOTER ===== */
 div.ios-doubt-footer {
 
   display: flex;
@@ -1066,7 +943,6 @@ div.ios-doubt-footer {
 
 }
 
-/* ===== SEND BUTTON ===== */
 button.ios-doubt-send {
 
   position: relative;
@@ -1101,8 +977,6 @@ button.ios-doubt-send {
 
 }
 
-
-/* Metallic Shine */
 button.ios-doubt-send::before {
 
   content: "";
@@ -1227,7 +1101,6 @@ button.ios-doubt-send:active {
   color: #777;
 }
 
-  /* --- MODAL OVERLAY & CONTAINER --- */
   #assignTaskModal {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     background: rgba(0, 0, 0, 0.4);
@@ -1254,8 +1127,6 @@ button.ios-doubt-send:active {
   #assignTaskModal.hidden .premium-modal-content {
     transform: translateY(20px) scale(0.95);
   }
-
-  /* --- HEADER --- */
   .premium-modal-header {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 8px;
@@ -1269,8 +1140,7 @@ button.ios-doubt-send:active {
     font-size: 1.2rem; color: #555; cursor: pointer; transition: all 0.2s ease;
   }
   .premium-close-btn:hover { background: #ff3b30; color: #fff; transform: rotate(90deg); }
-
-  /* --- AI MAGIC GENERATOR BOX --- */
+/*ai gen box*/
   @keyframes gradientPan {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
@@ -1308,7 +1178,6 @@ button.ios-doubt-send:active {
   }
   @keyframes shimmer { 0% { background-position: -100% 0; } 100% { background-position: 200% 0; } }
 
-  /* --- STANDARD INPUTS & GRID --- */
   .premium-form-group { display: flex; flex-direction: column; gap: 6px; }
   .premium-label { font-size: 0.85rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 4px; }
   
@@ -1323,13 +1192,10 @@ button.ios-doubt-send:active {
   }
   textarea.premium-input { resize: vertical; min-height: 100px; line-height: 1.5; }
 
-  /* CSS Grid for perfect half-width alignment */
   .premium-grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-  /* Custom styling for the select dropdown */
   select.premium-input { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 16px center; background-size: 16px; padding-right: 40px; }
 
-  /* --- PRIMARY SUBMIT BUTTON --- */
   .premium-submit-btn {
     all: unset; box-sizing: border-box; width: 100%; text-align: center;
     background: #111; color: #fff; font-size: 1.1rem; font-weight: 700;
@@ -1339,18 +1205,17 @@ button.ios-doubt-send:active {
   }
   .premium-submit-btn:hover { background: #0066ff; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0, 102, 255, 0.25); }
   .premium-submit-btn:active { transform: scale(0.98); }
-/* 💎 iOS Style Sidebar Categories */
+
 .sidebar-category {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #8E8E93; /* Standard iOS secondary text color */
+  color: #8E8E93; 
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin: 24px 16px 8px 16px;
   user-select: none;
 }
 
-/* Ensure your nav items have nice spacing to complement the new headers */
 .nav-item {
   padding: 10px 16px;
   margin: 4px 12px;

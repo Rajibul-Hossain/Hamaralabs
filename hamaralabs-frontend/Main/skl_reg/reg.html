@@ -5,24 +5,17 @@
   <link rel="stylesheet" href="../Css/skl_reg.css">
 </head>
 <body>
-
 <div class="page-wrapper">
-
   <div class="card">
     <h2>School Registration</h2>
-
     <form id="schoolForm">
-
-      <!-- School Info -->
       <div class="section">
         <h3>School Details</h3>
-
         <div class="grid-2">
           <div class="input-group">
             <input type="text" id="schoolName" required>
             <label>School Name *</label>
           </div>
-
           <div class="checkbox-group">
             <label>
               <input type="checkbox" id="isAtl">
@@ -30,7 +23,6 @@
             </label>
           </div>
         </div>
-
         <div class="grid-2">
           <div class="input-group">
             <input type="text" id="addressLine" required>
@@ -55,8 +47,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Incharge -->
       <div class="section">
         <h3>Incharge Details</h3>
         <div class="grid-2">
@@ -66,8 +56,6 @@
           <div class="input-group"><input type="text" id="inPhone" required><label>WhatsApp Contact</label></div>
         </div>
       </div>
-
-      <!-- Principal -->
       <div class="section">
         <h3>Principal Details</h3>
         <div class="grid-2">
@@ -77,18 +65,14 @@
           <div class="input-group"><input type="text" id="prPhone" required><label>WhatsApp Contact</label></div>
         </div>
       </div>
-
-      <!-- Correspondent -->
       <div class="section">
         <h3>Correspondent Details</h3>
-
         <div class="checkbox-group">
           <label>
             <input type="checkbox" id="sameAsPrincipal">
             Same As Principal
           </label>
         </div>
-
         <div class="grid-2">
           <div class="input-group"><input type="text" id="coFirst"><label>First Name</label></div>
           <div class="input-group"><input type="text" id="coLast"><label>Last Name</label></div>
@@ -96,11 +80,8 @@
           <div class="input-group"><input type="text" id="coPhone"><label>WhatsApp Contact</label></div>
         </div>
       </div>
-
-      <!-- Extras -->
       <div class="section">
         <h3>Additional Details</h3>
-
         <div class="checkbox-group multi">
           <label><input type="checkbox" value="CBSE"> CBSE</label>
           <label><input type="checkbox" value="State"> State</label>
@@ -108,12 +89,10 @@
           <label><input type="checkbox" value="IGCSE"> IGCSE</label>
           <label><input type="checkbox" value="IB"> IB</label>
         </div>
-
         <div class="input-group">
           <input type="url" id="website">
           <label>Website URL</label>
         </div>
-
         <div class="checkbox-group">
           <label>
             <input type="checkbox" id="paidSubscription">
@@ -121,14 +100,10 @@
           </label>
         </div>
       </div>
-
       <button type="submit" class="submit-btn">Register School</button>
-
     </form>
   </div>
-
 </div>
-
 <script type="module" src="school.js"></script>
 </body>
 </html>

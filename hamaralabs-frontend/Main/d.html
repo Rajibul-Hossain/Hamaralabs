@@ -6,21 +6,20 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="Css/ww.css">
   <link rel="stylesheet" href="Css/dashboard.css"></head>
-<body>
-<div class="sidebar" id="sidebar"><div class="logo">HamaraLabs 🏠</div></div><div class="main"><div class="topbar"><h3 id="welcomeText">Loading...</h3>
+  <style>:root { --144hz-fluid: cubic-bezier(0.32, 0.72, 0, 1);--144hz-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);--144hz-snappy: cubic-bezier(0.2, 0.8, 0.2, 1);}
+html, body {scroll-behavior: smooth;-webkit-overflow-scrolling: touch;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: grayscale;text-rendering: optimizeLegibility;}
+a, button, input, select, textarea, label {transition: all 0.3s var(--144hz-fluid);}
+.ios-drawer, .ios-drawer-content, .sl-data-group, .card, .section {transition-timing-function: var(--144hz-fluid) !important;}
+.ios-drawer {-webkit-backface-visibility: hidden; backface-visibility: hidden;}</style>
+<body><div class="sidebar" id="sidebar"><div class="logo">HamaraLabs 🏠</div></div><div class="main"><div class="topbar"><h3 id="welcomeText">Loading...</h3>
 <button class="settings-Btn" id="settingsBtn">⚙️</button><!-- settings button-->
 <div class="user-info"><span class="role-badge"id="roleBadge"></span><div class="logout"id="logoutBtn">Logout</div> </div>
 </div><div class="content" id="contentArea"><div class="loader">Loading dashboard...</div></div>
-<div class="modal hidden" id="assignTaskModal">
-  <div class="premium-modal-content">
-    <div class="premium-modal-header">
-      <h3>Assign New Task</h3>
+<div class="modal hidden" id="assignTaskModal"><div class="premium-modal-content"><div class="premium-modal-header"><h3>Assign New Task</h3>
       <button class="premium-close-btn" onclick="window.closeTaskModal()">✕</button></div><div class="premium-ai-box">
-      <div style="font-size: 1.4rem;">✨</div>
-      <input type="text" id="aiTaskIdea" class="premium-ai-input" placeholder="e.g., Build a smart dustbin with Arduino...">
+      <div style="font-size: 1.4rem;">✨</div><input type="text" id="aiTaskIdea" class="premium-ai-input" placeholder="e.g., Build a smart dustbin with Arduino...">
       <button id="aiGenerateBtn" class="premium-ai-btn" type="button" onclick="window.generateTaskWithAI()">Auto-Write</button></div>
-    <div class="premium-form-group"><label class="premium-label">Task Title</label>
-    <input type="text" id="taskTitle" class="premium-input" placeholder="Enter a clear, concise title"></div>
+    <div class="premium-form-group"><label class="premium-label">Task Title</label><input type="text" id="taskTitle" class="premium-input" placeholder="Enter a clear, concise title"></div>
     <div class="premium-form-group"><label class="premium-label">Detailed Description</label><textarea id="taskDescription" class="premium-input" placeholder="Explain what the student needs to do..."></textarea></div>
     <div class="premium-grid-row"><div class="premium-form-group"><label class="premium-label">Due Date</label><input type="date" id="taskDueDate" class="premium-input"></div>
     <div class="premium-form-group"><label class="premium-label">Priority Level</label><select id="taskPriority" class="premium-input">

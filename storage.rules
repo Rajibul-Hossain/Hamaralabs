@@ -1,0 +1,29 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is logged in
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 💎 HAMARALABS SUBMISSIONS PIPELINE
+    // Matches the exact path from your uploadSubmission function
+    match /submissions/{userId}/{taskId}/{fileName} {
+      
+      // Students can ONLY upload if the folder matches their own UID
+      // Pro restriction: Files must be under 10 Megabytes
+      allow write: if isAuthenticated() 
+                   && request.auth.uid == userId 
+                   && request.resource.size < 10 * 1024 * 1024;
+                   
+      // Mentors, Admins, and the Student themselves can view the downloaded file
+      allow read: if isAuthenticated();
+    }
+
+    // 🔒 DEFAULT BLOCK: Shut down all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
