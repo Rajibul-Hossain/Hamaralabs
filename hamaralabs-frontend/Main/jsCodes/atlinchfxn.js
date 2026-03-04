@@ -783,7 +783,7 @@ export async function loadTAReport(db, currentUID, contentArea) {
   }
 }
 export async function loadPersonnelManagement(db, currentUID, contentArea) {
-  contentArea.innerHTML = `<div class="loader" style="text-align:center; padding:50px; color:#8e8e93; font-weight:600;">Decrypting Roster Intel... ⏳</div>`;
+  contentArea.innerHTML = `<div class="loader" style="text-align:center; padding:50px; color:#8e8e93; font-weight:600;">Loading</div>`;
 
   try {
     const userDocSnap = await getDoc(doc(db, "users", currentUID));
@@ -979,5 +979,336 @@ export async function loadPersonnelManagement(db, currentUID, contentArea) {
   } catch (error) {
     console.error("Error loading roster:", error);
     contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30;">System Error. Could not access personnel data.</div>`;
+  }
+}
+// ============================================================================
+// 🤝 TEAM OPERATIONS: HIERARCHICAL STAFF DELEGATION
+// ============================================================================
+export async function loadStaffTasks(db, currentUID, contentArea) {
+  contentArea.innerHTML = `<div class="loader" style="text-align:center; padding:50px; color:#8e8e93; font-weight:600; font-family:sans-serif;">Loading.../ <span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span></div>`;
+  
+  try {
+    const { collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+
+    // 1. 🔐 SECURE ROLE & SCHOOL RETRIEVAL
+    const userDocSnap = await getDoc(doc(db, "users", currentUID));
+    if (!userDocSnap.exists()) return;
+    const userData = userDocSnap.data();
+    const userRole = userData.role || 'student';
+    const isAdmin = (userRole === 'admin' || userRole === 'platform-admin');
+    let mySchoolId = userData.schoolId;
+
+    if (!isAdmin && (userRole === "atl-incharge" || userRole === "school-admin") && !mySchoolId) {
+      const assignmentSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
+      if (!assignmentSnap.empty) mySchoolId = assignmentSnap.docs[0].data().schoolId;
+    }
+
+    if (!isAdmin && !mySchoolId) {
+      contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No institution linked for staff operations.</div>`;
+      return;
+    }
+
+    // 2. 🔍 HIERARCHICAL DATA FETCHING
+    let usersSnap, tasksSnap;
+    if (isAdmin) {
+      // Admin sees everything to allow global delegation
+      usersSnap = await getDocs(collection(db, "users"));
+      tasksSnap = await getDocs(collection(db, "staff_tasks"));
+    } else {
+      // Staff only pull their institution's matrix
+      usersSnap = await getDocs(query(collection(db, "users"), where("schoolId", "==", mySchoolId)));
+      tasksSnap = await getDocs(query(collection(db, "staff_tasks"), where("schoolId", "==", mySchoolId)));
+    }
+
+    // 3. 🧠 THE DELEGATION ENGINE (Strict Rules applied)
+    let staffMap = {};
+    window.staffTargetData = {}; // Stores target's schoolId for cross-routing
+    let staffOptionsHtml = '';
+    
+    usersSnap.forEach(docSnap => {
+      const u = docSnap.data();
+      const uid = docSnap.id;
+      const targetRole = u.role;
+
+      // Rule 1: No one assigns to Admins or Students.
+      if (targetRole === 'admin' || targetRole === 'platform-admin' || targetRole === 'student') return;
+      // Rule 2: Cannot assign to yourself.
+      if (uid === currentUID) return;
+
+      // Rule 3: If you are NOT an admin, you CANNOT assign to a School Admin.
+      if (!isAdmin && targetRole === 'school-admin') return;
+
+      staffMap[uid] = { name: u.name || "Unknown Staff", role: targetRole, schoolId: u.schoolId };
+      window.staffTargetData[uid] = u.schoolId; // Save for routing
+
+      // Build beautiful Dropdown
+      const roleLabel = (targetRole || '').replace('-', ' ').toUpperCase();
+      let displayContext = isAdmin && u.schoolId ? ` - [Sch-ID: ${u.schoolId.substring(0,4)}]` : '';
+      staffOptionsHtml += `<option value="${uid}">${u.name || 'Unknown'} (${roleLabel})${displayContext}</option>`;
+    });
+
+    if (staffOptionsHtml === '') staffOptionsHtml = `<option value="">No eligible staff members available.</option>`;
+
+    let myTasksHtml = '';
+    let delegatedTasksHtml = '';
+    let myTaskCount = 0;
+    let delegatedCount = 0;
+
+    // 4. 🧩 TASK ROUTING & RENDERING
+    tasksSnap.forEach(docSnap => {
+      const t = docSnap.data();
+      const tId = docSnap.id;
+      const status = t.status || 'pending';
+      const isCompleted = status === 'completed';
+      
+      const assignedToMe = t.assignedTo === currentUID;
+      const assignedByMe = t.assignedBy === currentUID && !assignedToMe; 
+
+      // If Admin is viewing, only show tasks they created or were assigned (should be none)
+      if (isAdmin && !assignedByMe && !assignedToMe) return;
+
+      const checkIcon = isCompleted 
+        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>` : ``;
+      
+      const checkClass = isCompleted ? 'st-check-active' : '';
+      const textClass = isCompleted ? 'st-text-done' : '';
+
+      const taskHTML = (context) => `
+        <div class="st-task-card" id="task-card-${tId}">
+          <div style="display:flex; align-items:flex-start; gap:18px;">
+            ${context === 'mine' ? `
+              <button class="st-checkbox ${checkClass}" onclick="window.toggleStaffTask('${tId}', '${status}')" id="check-${tId}">${checkIcon}</button>
+            ` : `
+              <div class="st-status-indicator ${isCompleted ? 'st-ind-done' : 'st-ind-pending'}"></div>
+            `}
+            <div style="flex:1;">
+              <h4 class="st-task-title ${textClass}" id="title-${tId}">${t.title}</h4>
+              <p class="st-task-desc">${t.description || ''}</p>
+              <div class="st-task-meta">
+                ${context === 'mine' 
+                  ? `<span style="color:#007aff; font-weight:700;">From:</span> ${t.assignedByName || 'Admin'}` 
+                  : `<span style="color:#8e8e93; font-weight:700;">To:</span> ${staffMap[t.assignedTo]?.name || 'Staff'}`}
+                ${t.dueDate ? `&nbsp; • &nbsp; Due: <span style="font-weight:600; color:#1c1c1e;">${t.dueDate}</span>` : ''}
+              </div>
+            </div>
+            ${context === 'delegated' ? `
+              <button class="st-del-btn" onclick="window.deleteStaffTask('${tId}')" title="Retract Task">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+
+      if (assignedToMe) { myTasksHtml += taskHTML('mine'); if (!isCompleted) myTaskCount++; }
+      if (assignedByMe) { delegatedTasksHtml += taskHTML('delegated'); if (!isCompleted) delegatedCount++; }
+    });
+
+    if (!myTasksHtml) myTasksHtml = `<div class="st-empty">Zero action items. You are clear.</div>`;
+    if (!delegatedTasksHtml) delegatedTasksHtml = `<div class="st-empty">No tasks delegated to your team.</div>`;
+
+    // 5. 🎨 ULTRA PREMIUM ONE UI 9 + MACOS CSS
+    const stCss = `
+      <style>
+        .st-wrapper { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; max-width: 960px; margin: 0 auto; padding: 50px 10px 80px 10px; animation: stFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        .st-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 48px; }
+        
+        .st-section-header { font-size: 1.3rem; color: #1c1c1e; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 20px; display:flex; align-items:center; gap:12px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 12px;}
+        .st-badge { background: rgba(0,122,255,0.1); color: #007aff; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;}
+
+        /* Glassmorphic Widget Cards */
+        .st-task-card { background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); border-radius: 28px; padding: 24px 28px; box-shadow: 0 8px 24px rgba(0,0,0,0.03); border: 1px solid rgba(255,255,255,0.8); margin-bottom: 16px; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .st-task-card:hover { transform: translateY(-4px) scale(1.005); box-shadow: 0 16px 40px rgba(0,122,255,0.08); border-color: rgba(0,122,255,0.2); }
+        
+        .st-task-title { font-size: 1.25rem; font-weight: 700; color: #1c1c1e; margin: 0 0 8px 0; transition: all 0.3s ease; letter-spacing: -0.2px; }
+        .st-task-desc { font-size: 1.05rem; color: #636366; margin: 0 0 16px 0; line-height: 1.5; font-weight: 500;}
+        .st-task-meta { font-size: 0.9rem; color: #8e8e93; background: rgba(0,0,0,0.02); display: inline-block; padding: 6px 12px; border-radius: 10px; font-weight: 500;}
+        .st-text-done { color: #8e8e93; text-decoration: line-through; opacity: 0.6; }
+
+        /* Liquid Checkbox */
+        .st-checkbox { width: 32px; height: 32px; border-radius: 50%; border: 2.5px solid #d1d1d6; background: transparent; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); outline: none; margin-top: 2px; flex-shrink: 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);}
+        .st-checkbox:hover { border-color: #007aff; transform: scale(1.1); }
+        .st-check-active { background: linear-gradient(135deg, #34c759, #28a745); border-color: transparent; transform: scale(1) !important; box-shadow: 0 8px 16px rgba(52,199,89,0.3); }
+        
+        .st-status-indicator { width: 14px; height: 14px; border-radius: 50%; margin-top: 8px; flex-shrink: 0; }
+        .st-ind-pending { background: #ff9500; box-shadow: 0 0 12px rgba(255,149,0,0.5); }
+        .st-ind-done { background: #34c759; box-shadow: 0 0 12px rgba(52,199,89,0.5); }
+
+        .st-del-btn { background: #f2f2f7; border: none; color: #ff3b30; cursor: pointer; transition: 0.3s; padding: 12px; border-radius: 14px; display:flex; justify-content:center; align-items:center;}
+        .st-del-btn:hover { background: #ffe5e5; transform: scale(1.1); }
+        
+        .st-empty { text-align: center; padding: 40px; font-size: 1.1rem; color: #8e8e93; font-weight: 600; background: rgba(0,0,0,0.02); border-radius: 28px; border: 2px dashed rgba(0,0,0,0.05); }
+
+        /* Floating Action Button (FAB) */
+        .st-fab { background: linear-gradient(135deg, #007aff, #5856d6); color: white; border: none; border-radius: 100px; padding: 16px 32px; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 12px 24px rgba(0,122,255,0.3); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); display:flex; align-items:center; gap:8px;}
+        .st-fab:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 16px 32px rgba(0,122,255,0.4); }
+
+        /* macOS Spatial Eruption Modal */
+        .st-mac-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0); z-index: 9999; display: none; justify-content: center; align-items: center; transition: background 0.4s ease, backdrop-filter 0.4s ease; }
+        .st-mac-overlay.active { background: rgba(0,0,0,0.4); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+        
+        .st-mac-modal { 
+          background: rgba(255,255,255,0.95); backdrop-filter: blur(40px); width: 92%; max-width: 480px; 
+          border-radius: 100px; padding: 40px 32px; box-shadow: 0 40px 80px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,1); border: 1px solid rgba(255,255,255,0.8);
+          opacity: 0; transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0.05); 
+          transition: transform 0.55s cubic-bezier(0.32, 0.08, 0.24, 1), opacity 0.4s ease, border-radius 0.5s cubic-bezier(0.32, 0.08, 0.24, 1);
+        }
+        .st-mac-overlay.active .st-mac-modal { transform: translate(0px, 0px) scale(1); opacity: 1; border-radius: 40px; }
+
+        .st-input, .st-select, .st-textarea { width: 100%; box-sizing: border-box; background: #f2f2f7; border: 2px solid transparent; border-radius: 20px; padding: 20px 24px; font-size: 1.1rem; color: #1c1c1e; margin-bottom: 16px; outline: none; transition: 0.3s; font-family: inherit; font-weight:500;}
+        .st-input:focus, .st-select:focus, .st-textarea:focus { background: #fff; border-color: #007aff; box-shadow: 0 8px 24px rgba(0,122,255,0.15); transform: translateY(-2px);}
+        .st-textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
+        
+        @keyframes stFadeIn { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
+        @keyframes liquidPulse { 0%{transform:scale(1);} 50%{transform:scale(1.25);} 100%{transform:scale(1);} }
+      </style>
+    `;
+
+    contentArea.innerHTML = `
+      ${stCss}
+      <div class="st-wrapper">
+        <div class="st-header">
+          <div>
+            <div style="color:#007aff; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; font-size:0.85rem;">Operations Matrix</div>
+            <h1 style="font-size: 3.2rem; font-weight: 800; margin: 0 0 4px 0; color: #1c1c1e; letter-spacing: -1.5px; line-height:1;">Tasks</h1>
+            <p style="font-size: 1.15rem; color: #8e8e93; margin: 0; font-weight: 500;">Hierarchical task management and team sync.</p>
+          </div>
+          <button class="st-fab" onclick="window.openStaffTaskModal(event)">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+            Dispatch Task
+          </button>
+        </div>
+
+        <div class="st-section-header">My Action Items <span class="st-badge">${myTaskCount}</span></div>
+        <div style="margin-bottom: 56px;">${myTasksHtml}</div>
+
+        <div class="st-section-header">Assigned by Me <span class="st-badge">${delegatedCount}</span></div>
+        <div>${delegatedTasksHtml}</div>
+      </div>
+
+      <div id="stOverlay" class="st-mac-overlay" onclick="if(event.target===this) window.closeStaffTaskModal()">
+        <div class="st-mac-modal" id="stModal">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 32px;">
+            <h2 style="margin:0; font-size: 1.8rem; font-weight:800; letter-spacing:-0.5px; color:#1c1c1e;">New Directive</h2>
+            <button onclick="window.closeStaffTaskModal()" style="background:#f2f2f7; border:none; width:40px; height:40px; border-radius:20px; cursor:pointer; color:#8e8e93; font-size:1.2rem; transition:0.2s;" onmouseover="this.style.background='#e5e5ea'">✕</button>
+          </div>
+          
+          <input type="text" id="st-new-title" class="st-input" placeholder="Directive Title (e.g. Audit Hardware)" required>
+          <textarea id="st-new-desc" class="st-textarea" placeholder="Details, requirements, and instructions..."></textarea>
+          
+          <select id="st-new-assignee" class="st-select" required>
+            <option value="">-- Assign To Personnel --</option>
+            ${staffOptionsHtml}
+          </select>
+          
+          <input type="date" id="st-new-date" class="st-input">
+          
+          <button id="btn-create-st" onclick="window.submitStaffTask()" style="background: linear-gradient(135deg, #007aff, #34c759); color: #fff; border: none; border-radius: 20px; padding: 22px; width: 100%; font-size: 1.2rem; font-weight: 800; cursor: pointer; box-shadow: 0 12px 24px rgba(0,122,255,0.3); margin-top: 12px; transition: transform 0.2s;" onactive="this.style.transform='scale(0.96)'">
+            Initialize & Deploy 🚀
+          </button>
+        </div>
+      </div>
+    `;
+
+    // 6. 🚀 FLAGSHIP INTERACTIVITY
+
+    window.openStaffTaskModal = function(event) {
+      const overlay = document.getElementById('stOverlay');
+      const modal = document.getElementById('stModal');
+      
+      if (event && event.currentTarget) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        modal.style.setProperty('--tx', `${(rect.left + rect.width/2) - (window.innerWidth/2)}px`);
+        modal.style.setProperty('--ty', `${(rect.top + rect.height/2) - (window.innerHeight/2)}px`);
+      }
+      
+      overlay.style.display = 'flex';
+      void modal.offsetWidth; 
+      overlay.classList.add('active');
+    };
+
+    window.closeStaffTaskModal = function() {
+      const overlay = document.getElementById('stOverlay');
+      overlay.classList.remove('active');
+      setTimeout(() => overlay.style.display = 'none', 450);
+    };
+
+    window.submitStaffTask = async function() {
+      const title = document.getElementById('st-new-title').value.trim();
+      const desc = document.getElementById('st-new-desc').value.trim();
+      const assigneeId = document.getElementById('st-new-assignee').value;
+      const dueDate = document.getElementById('st-new-date').value;
+      const btn = document.getElementById('btn-create-st');
+
+      if (!title || !assigneeId) return alert("Title and Assigned Personnel are required.");
+
+      btn.innerHTML = "Encrypting... ⏳"; btn.disabled = true;
+
+      try {
+        const targetSchoolId = window.staffTargetData[assigneeId] || mySchoolId;
+        await addDoc(collection(db, "staff_tasks"), {
+          title: title,
+          description: desc,
+          assignedBy: currentUID,
+          assignedByName: userData.name || 'Platform Admin',
+          assignedTo: assigneeId,
+          schoolId: targetSchoolId, 
+          status: "pending",
+          dueDate: dueDate,
+          createdAt: serverTimestamp()});
+        btn.innerHTML = "Deployed! ✅";
+        setTimeout(() => {
+          window.closeStaffTaskModal();
+          loadStaffTasks(db, currentUID, contentArea);
+        }, 800);
+      } catch(err) {
+        console.error(err); alert("Failed to initialize directive.");
+        btn.innerHTML = "Initialize & Deploy 🚀"; btn.disabled = false;
+      }
+    };
+
+    window.toggleStaffTask = async function(taskId, currentStatus) {
+      const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
+      const checkBtn = document.getElementById(`check-${taskId}`);
+      const titleEl = document.getElementById(`title-${taskId}`);
+      
+      // Liquid Optimistic UI
+      if (newStatus === 'completed') {
+        checkBtn.classList.add('st-check-active');
+        checkBtn.style.animation = 'liquidPulse 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        checkBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        titleEl.classList.add('st-text-done');
+      } else {
+        checkBtn.classList.remove('st-check-active');
+        checkBtn.style.animation = '';
+        checkBtn.innerHTML = '';
+        titleEl.classList.remove('st-text-done');
+      }
+
+      try {
+        await updateDoc(doc(db, "staff_tasks", taskId), { status: newStatus });
+        setTimeout(() => loadStaffTasks(db, currentUID, contentArea), 1000); 
+      } catch(err) {
+        alert("Sync failed. Reverting.");
+        loadStaffTasks(db, currentUID, contentArea);
+      }
+    };
+
+    window.deleteStaffTask = async function(taskId) {
+      if (!confirm("Retract this operational directive?")) return;
+      document.getElementById(`task-card-${taskId}`).style.opacity = '0.3';
+      document.getElementById(`task-card-${taskId}`).style.transform = 'scale(0.95)';
+      try {
+        await deleteDoc(doc(db, "staff_tasks", taskId));
+        setTimeout(() => loadStaffTasks(db, currentUID, contentArea), 300);
+      } catch(err) {
+        alert("Retraction failed.");
+        loadStaffTasks(db, currentUID, contentArea);
+      }
+    };
+
+  } catch (error) {
+    console.error("Operational Matrix Error:", error);
+    contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30; font-weight:600;">System Error: Failed to access operational matrix.</div>`;
   }
 }

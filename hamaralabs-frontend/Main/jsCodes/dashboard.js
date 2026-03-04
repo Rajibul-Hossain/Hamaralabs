@@ -6,7 +6,7 @@ import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com
 import { addCheckmarkAnimation, confettiBurst, startPremiumSparkle, regformCSS, regHTML, tinkerCSS } from "./animations.js";
 import { loadAdminOverview, loadAdminSchools, loadAdminUsers, loadStudentSnapshot } from "./adminFxn.js";
 import { dispatchEmailNotification, loadStudentTAs } from "./basicfxns.js";
-import { loadInchargeOverview, loadTAForm, loadTAReport  } from "./atlinchfxn.js";
+import { loadInchargeOverview, loadTAForm, loadTAReport, loadStaffTasks } from "./atlinchfxn.js";
 const firebaseConfig = {
   apiKey: "AIzaSyAPyLzaSXa1wMjD77wMi1-Z2bSvhAbFCBU",
   authDomain: "digital-atl.firebaseapp.com",
@@ -41,39 +41,71 @@ function renderSidebar(role) {
       HamaraLabs <span style="font-size: 1.4rem;">🏠</span></div>`;
   let menuStructure = []; 
   const safeRole = role.toLowerCase();
-  if (safeRole === "mentor") {
-    menuStructure = [{ category: "Overview", items: ["Feature in Progress..."] },
-       { category: "My Hub", items: [ "students","studentReg", "studentList",] },
-       { category: "AI Feature", items: ["tinkerLab"] },
-       { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },];}
-     else if (safeRole === "student") {
-      menuStructure = [
-      { category: "Overview", items: ["Feature in Progress..."] },
-      { category: "My Workspace", items: ["myTasks"] },
-      {category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkeringActivities", "tinkering activity report"]}];}
-  if (safeRole === "atl-incharge" || safeRole === "school-admin") {
+ if (safeRole === "mentor") {
     menuStructure = [
-      { category: "Lab Ops", items: ["overview"] },
+      { category: "Overview", items: ["Feature in Progress..."] },
+      { category: "My Hub", items: ["students", "team operations", "studentReg", "studentList"] },
+      { category: "AI Feature", items: ["tinkerLab"] },
+      { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] }
+    ];
+  } 
+  else if (safeRole === "student") {
+    menuStructure = [
+      { category: "Overview", items: ["Student Snapshot"] }, // Replaced blank feature with their new Telemetry Dashboard!
+      { category: "My Workspace", items: ["myTasks"] },
+      { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkeringActivities", "tinkering activity report"] }
+    ];
+  } 
+  else if (safeRole === "atl-incharge" || safeRole === "school-admin") {
+    menuStructure = [
+      { category: "Command Center", items: ["overview", "team operations"] },
       { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },
-      {category: "Students", items:["Student Snapshot","studentReg", "studentList"]},];}
-
+      { category: "Personnel & Telemetry", items: ["Student Snapshot", "mentors", "studentReg", "studentList"] }
+    ];
+  } 
   else if (safeRole === "admin") { 
     menuStructure = [
       { category: "Home", items: ["overview"] },
-      { category: "Approvals", items: ["users"]},
+      { category: "Approvals", items: ["users"] },
       { category: "Schools", items: ["schools", "Register School"] },
-      { category: "Students", items: ["studentReg", "studentList", "studentSnapshot"] },
+      { category: "Users & Telemetry", items: ["Student Snapshot", "team operations", "studentReg", "studentList"] },
       { category: "Operations", items: ["Feature in Progress"] },
       { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },
-      { category: "System", items: ["Feature in Progress"] }];}
+      { category: "System", items: ["Feature in Progress"] }
+    ];
+  }
+
+  // Ultra-Premium Display Names Mapping
   const displayNames = {
-    "overview": "Overview", "analytics": "Analytics", "schools": "School Report", "Register School": "Register School", 
-    "users": "Mentors & Students", "studentReg": "Student Registration", "tasks": "Global Tasks", "announcements": "Announcements", 
-    "settings": "Settings", "students": "My Students", "assignedTeams": "Assigned Schools", "sessions": "Live Sessions", 
-    "tinkerLab": "AI Activity Lab 💡", "myTasks": "My Tasks", "studentList": "Student Data", "studentSnapshot": "Student Snapshot",
-  "overview": "Overview 📊","tinkeringActivities": "Assigned TAs",
-    "Tinkering Activity Form": "TA Form 📋",
-    "tinkering activity report": "TA Report 📝"};
+    "overview": "Overview 📊", 
+    "analytics": "Analytics", 
+    "schools": "School Report", 
+    "Register School": "Register School", 
+    "users": "Platform Users", 
+    "studentReg": "Student Registration", 
+    "tasks": "Global Tasks", 
+    "announcements": "Announcements", 
+    "settings": "Settings", 
+    "students": "My Students", 
+    "assignedTeams": "Assigned Schools", 
+    "sessions": "Live Sessions", 
+    "tinkerLab": "AI Activity Lab 💡", 
+    "myTasks": "My Tasks", 
+    "studentList": "Student Data", 
+    "Student Snapshot": "Student Snapshot 🎯", 
+    "studentSnapshot": "Student Snapshot", // Fallback
+    "tinkeringActivities": "Assigned TAs",
+    
+    // The Flagship Features we just built
+    "Tinkering Activity Form": "TA form",
+    "tinkering activity report": "TA report",
+    "team operations": "Tasks",
+    "mentors": "..",
+    
+    // Placeholders
+    "Feature in Progress...": "Coming Soon ⏳",
+    "Feature in Progress": "Coming Soon ⏳"
+  };
   menuStructure.forEach(group => {const catHeader = document.createElement("div"); 
     catHeader.className = "sidebar-category";
     catHeader.innerText = group.category; sidebar.appendChild(catHeader);
@@ -94,6 +126,10 @@ async function loadSection(section) {
   if (section === "sessions") loadSessions();
   if (section === "analytics") loadAnalytics();
   if (section === "myTasks") loadStudentTasks();
+  if (section === "team operations") {
+  loadStaffTasks(db, currentUID, contentArea);
+  return;
+}
   if (section === "studentList") { import('./adminFxn.js').then(module => module.loadStudentList(db, contentArea)).catch(err => console.error("Error loading Student List:", err));return; }
   if (section === "studentReg") { import('./adminFxn.js').then(module => module.loadStudentRegistration(db, contentArea))
         .catch(error => { console.error("Error:", error); contentArea.innerHTML = `<div style="text-align:center; padding:40px; color:#FF3B30;">Failed to load.</div>`; });}
