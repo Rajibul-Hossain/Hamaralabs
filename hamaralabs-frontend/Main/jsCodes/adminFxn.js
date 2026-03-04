@@ -1219,168 +1219,325 @@ export async function loadStudentRegistration(db, contentArea) {
     console.error("Error loading student list:", error);
     container.innerHTML = `<div style="text-align:center; padding: 40px; color: #ef4444; font-weight:600;">Failed to load directory. Check console.</div>`;
   }
-}
-export async function loadStudentSnapshot(db, contentArea, restrictedSchoolId = null) {
+}export async function loadStudentSnapshot(db, contentArea, restrictedSchoolId = null) {
   const container = contentArea || document.getElementById("dashboardContent");
   if (!container) return;
-  container.innerHTML = `<div style="text-align:center; padding: 80px; color: #71717a; font-family: 'Plus Jakarta Sans', sans-serif;">Aggregating Global Snapshot...</div>`;
-  const safeStr = (str) => {if (!str) return '';
-    return String(str).replace(/[&<>"']/g, function(m) {return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[m];});};
-  try {const { collection, query, where, getDocs, doc, getDoc, deleteDoc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-    // Bind  globally so the detail modal can fetch data
-    window.snapshotDb = db;window.snapshotGetDoc = getDoc;window.snapshotDocRef = doc;
+  
+  container.innerHTML = `<div style="text-align:center; padding: 80px; color: #71717a; font-family: 'Plus Jakarta Sans', sans-serif;">Aggregating Global Snapshot... <span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span></div><style>@keyframes spin { 100% { transform:rotate(360deg); } }</style>`;
+  
+  const safeStr = (str) => {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, function(m) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[m];
+    });
+  };
 
-    //  If an Incharge calls this, only fetch THEIR students
-    const studentQuery = restrictedSchoolId 
-      ? query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", restrictedSchoolId))
+  try {
+    const { collection, query, where, getDocs, doc, getDoc, deleteDoc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+    
+    // Bind globally so the detail modal can fetch data
+    window.snapshotDb = db;
+    window.snapshotGetDoc = getDoc;
+    window.snapshotDocRef = doc;
+
+    // 1. 🔐 SECURE AUTH & ROLE RETRIEVAL
+    const auth = getAuth();
+    const currentUID = auth.currentUser ? auth.currentUser.uid : null;
+    if (!currentUID) {
+      container.innerHTML = `<div style="text-align:center; padding:40px; color:#ef4444; font-weight:700;">Authentication Error.</div>`;
+      return;
+    }
+
+    const userSnap = await getDoc(doc(db, "users", currentUID));
+    if (!userSnap.exists()) return;
+    const userData = userSnap.data();
+    const userRole = userData.role || 'student';
+    let actualSchoolId = restrictedSchoolId || userData.schoolId;
+
+    if ((userRole === "atl-incharge" || userRole === "school-admin") && !actualSchoolId && !restrictedSchoolId) {
+      const assignmentSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
+      if (!assignmentSnap.empty) actualSchoolId = assignmentSnap.docs[0].data().schoolId;
+    }
+
+    // 2. 🔍 FETCH DUAL-TELEMETRY
+    const studentQuery = actualSchoolId 
+      ? query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", actualSchoolId))
       : query(collection(db, "users"), where("role", "==", "student"));
-    const [schoolsSnap, studentsSnap, tasksSnap] = await Promise.all([
+      
+    const tasksQuery = actualSchoolId 
+      ? query(collection(db, "tasks"), where("schoolId", "==", actualSchoolId))
+      : collection(db, "tasks");
+
+    const taQuery = actualSchoolId 
+      ? query(collection(db, "tinkering_activities"), where("schoolId", "==", actualSchoolId))
+      : collection(db, "tinkering_activities");
+
+    const [schoolsSnap, studentsSnap, tasksSnap, taSnap] = await Promise.all([
       getDocs(collection(db, "schools")),
       getDocs(studentQuery),
-      getDocs(collection(db, "tasks")) ]);
+      getDocs(tasksQuery),
+      getDocs(taQuery)
+    ]);
+
     const dataArchitecture = {};
     window.snapshotStudents = {}; 
     window.allStudentsList = [];  
+    
     let schoolFilterOptions = `<option value="all">All Institutions</option>`;
     schoolsSnap.forEach(doc => {
       const sName = doc.data().schoolName || doc.data().name || "Unnamed School";
       dataArchitecture[doc.id] = { schoolName: sName, students: {} };
-      schoolFilterOptions += `<option value="${doc.id}">${safeStr(sName)}</option>`;});
+      schoolFilterOptions += `<option value="${doc.id}">${safeStr(sName)}</option>`;
+    });
+    
     dataArchitecture["unassigned"] = { schoolName: "Unassigned / Independent", students: {} };
     schoolFilterOptions += `<option value="unassigned">Unassigned / Independent</option>`;
+    
     const studentToSchoolMap = {};
-    studentsSnap.forEach(doc => {const d = doc.data();
+    
+    studentsSnap.forEach(doc => {
+      const d = doc.data();
       const sId = d.schoolId && dataArchitecture[d.schoolId] ? d.schoolId : "unassigned";
-      const studentObj = { id: doc.id, name: d.name || "Unknown Student", email: d.email || "", tasks: [] };
+      const studentObj = { id: doc.id, name: d.name || "Unknown Student", email: d.email || "", tasks: [], missions: [] };
       dataArchitecture[sId].students[doc.id] = studentObj;
       window.snapshotStudents[doc.id] = studentObj;
       window.allStudentsList.push({ id: doc.id, name: studentObj.name });
-      studentToSchoolMap[doc.id] = sId;});
-    tasksSnap.forEach(doc => {const t = doc.data(); const studentId = t.studentId;
-      // restricted the studentsSnap, tasks for other students are  ignored here!
-      if (studentId && studentToSchoolMap[studentId]) {const sId = studentToSchoolMap[studentId];
-        dataArchitecture[sId].students[studentId].tasks.push({ id: doc.id, ...t });}});
-    let htmlContent = '';
-    for (const [schoolId, schoolData] of Object.entries(dataArchitecture)) {
-      const studentKeys = Object.keys(schoolData.students);
-      if (studentKeys.length === 0) continue; //  skips empty schools!
-      let schoolTotalTasks = 0; let schoolCompletedTasks = 0; let studentsHTML = '';
-      studentKeys.forEach(studentId => {
-        const student = schoolData.students[studentId];
-        const totalTasks = student.tasks.length;
-        const completedTasks = student.tasks.filter(t => (t.status || '').toLowerCase() === 'completed').length;
-        schoolTotalTasks += totalTasks;
-        schoolCompletedTasks += completedTasks;
+      studentToSchoolMap[doc.id] = sId;
+    });
 
-        const progressPct = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
-        const avatarLetter = safeStr(student.name).charAt(0).toUpperCase();
-        
-        const searchStr = `${student.name} ${student.email}`.toLowerCase();
-        let statusCategory = progressPct === 0 ? 'not_started' : (progressPct === 100 ? 'completed' : 'in_progress');
+    tasksSnap.forEach(doc => {
+      const t = doc.data(); 
+      const studentId = t.studentId;
+      if (studentId && studentToSchoolMap[studentId]) {
+        const sId = studentToSchoolMap[studentId];
+        dataArchitecture[sId].students[studentId].tasks.push({ id: doc.id, ...t });
+      }
+    });
 
-        let tasksPreviewHTML = '';
-        if (totalTasks === 0) {
-          tasksPreviewHTML = `<div class="snap-no-tasks" style="color:#94a3b8; font-size:0.85rem; font-style:italic;">No tasks assigned yet</div>`;
-          statusCategory = 'no_tasks';
-        } else {
-          student.tasks.slice(0, 3).forEach(task => {
-            const status = (task.status || 'assigned').toLowerCase();
-            let statusColor = '#cbd5e1'; 
-            if (status === 'completed') statusColor = '#10b981'; 
-            if (status === 'in progress') statusColor = '#3b82f6'; 
-            tasksPreviewHTML += `<div class="snap-task-item"><div class="snap-task-dot" style="background-color: ${statusColor};"></div><div class="snap-task-title">${safeStr(task.title || 'Untitled')}</div></div>`;
-          });
-          if (totalTasks > 3) tasksPreviewHTML += `<div style="font-size:0.75rem; color:#64748b; margin-top:6px; font-weight:600;">+ ${totalTasks - 3} more tasks</div>`;}
-        studentsHTML += `
-          <div class="snap-student-card" data-search="${searchStr}" data-status="${statusCategory}" onclick="window.openStudentTaskModal(event, '${studentId}')">
-            <div class="snap-student-header">
-              <div class="snap-avatar">${avatarLetter}</div>
-              <div style="flex:1;">
-                <div class="snap-student-name">${safeStr(student.name)}</div>
-                <div class="snap-student-meta">${totalTasks} Tasks • ${progressPct}% Done</div></div></div>
-            <div class="snap-progress-track">
-              <div class="snap-progress-fill" style="width: ${progressPct}%;"></div></div>
-            <div class="snap-task-list">${tasksPreviewHTML}</div></div>`;});
+    taSnap.forEach(doc => {
+      const ta = doc.data();
+      const studentId = ta.assignedTo;
+      if (studentId && studentId !== 'unassigned' && studentToSchoolMap[studentId]) {
+        const sId = studentToSchoolMap[studentId];
+        dataArchitecture[sId].students[studentId].missions.push({ id: doc.id, ...ta });
+      }
+    });
 
-      const schoolProgress = schoolTotalTasks === 0 ? 0 : Math.round((schoolCompletedTasks / schoolTotalTasks) * 100);
-      htmlContent += `<div class="snap-school-block" data-school="${schoolId}">
-          <div class="snap-school-trigger" onclick="this.parentElement.classList.toggle('active')">
-            <div class="snap-school-info">
-              <h3>${safeStr(schoolData.schoolName)}</h3>
-              <span class="snap-school-badge">${studentKeys.length} Students Enrolled</span></div>
-            <div class="snap-school-metrics">
-              <div class="snap-metric"><span class="snap-metric-val">${schoolProgress}%</span><span class="snap-metric-lbl">Completion</span></div>
-              <div class="snap-arrow"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div>
-            </div></div>
-          <div class="snap-school-content"><div class="snap-school-content-inner"><div class="snap-student-grid">${studentsHTML}</div></div></div>
-        </div>`;
-    }
-    
-    if (!htmlContent) htmlContent = `<div style="text-align:center; padding: 60px; color:#71717a; font-weight:600;">No student data available.</div>`;
+    // ========================================================================
+    // 🧑‍🎓 ROLE: STUDENT VIEW
+    // ========================================================================
+    if (userRole === "student") {
+      const me = window.snapshotStudents[currentUID];
+      if (!me) {
+        container.innerHTML = `<div style="padding:40px; text-align:center;">Profile not found.</div>`;
+        return;
+      }
 
-    // Hide the School Dropdown if they are restricted to one school
-    const dropdownDisplay = restrictedSchoolId ? 'none' : 'block';
-    
-    container.innerHTML = `
-      ${typeof csss !== 'undefined' ? csss : ''} <div class="snap-theme-container">
-        <div class="snap-header">
-          <h2>Student Snapshot</h2>
-          <p>${restrictedSchoolId ? "Task progression for your laboratory." : "Task progression across all institutions."}</p>
-        </div>
+      const myTasks = me.tasks.length;
+      const myCompletedTasks = me.tasks.filter(t => (t.status||'').toLowerCase() === 'completed').length;
+      const myMissions = me.missions.length;
+      const myCompletedMissions = me.missions.filter(m => (m.status||'').toLowerCase() === 'completed').length;
+      const totalItems = myTasks + myMissions;
+      const totalCompleted = myCompletedTasks + myCompletedMissions;
+      const myProgress = totalItems === 0 ? 0 : Math.round((totalCompleted / totalItems) * 100);
 
-        <div class="snap-controls">
-          <div class="snap-search-wrap">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            <input type="text" id="snapGlobalSearch" class="snap-search" placeholder="Search by student name or email..." onkeyup="window.filterSnapshot()">
-          </div>
+      // 🔥 FIX: Added onclick to trigger specific modals for students
+      container.innerHTML = `
+        ${typeof csss !== 'undefined' ? csss : ''}
+        <div style="max-width: 900px; margin: 0 auto; padding: 40px 10px; font-family: -apple-system, sans-serif; animation: taFadeIn 0.5s ease;">
+          <h2 style="font-size:2.4rem; font-weight:800; color:#1c1c1e; margin:0 0 8px 0; letter-spacing:-1px;">My Telemetry</h2>
+          <p style="color:#8e8e93; font-size:1.1rem; margin-bottom:40px; font-weight:500;">Monitor your tasks and Tinkering Activity progress.</p>
           
-          <select id="snapFilterSchool" class="snap-filter" onchange="window.filterSnapshot()" style="display: ${dropdownDisplay};">
-            ${schoolFilterOptions}
-          </select>
-          
-          <select id="snapFilterProgress" class="snap-filter" onchange="window.filterSnapshot()">
-            <option value="all">All Progress Statuses</option>
-            <option value="completed">100% Completed</option>
-            <option value="in_progress">In Progress (1-99%)</option>
-            <option value="not_started">Not Started (0%)</option>
-            <option value="no_tasks">No Tasks Assigned</option>
-          </select>
-        </div>
-
-        <div id="snapshotAccordionContainer">
-          ${htmlContent}
-        </div>
-      </div>
-
-      <div class="tm-backdrop" id="taskModalBackdrop" onclick="if(event.target===this) window.closeStudentTaskModal()">
-        <div class="tm-modal" id="taskModalContent">
-          <div class="tm-header">
-            <div>
-              <div style="font-size: 0.8rem; color: #8b5cf6; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Task Manager</div>
-              <h3 id="tmStudentName">Loading...</h3>
+          <div style="background:#fff; border-radius:24px; padding:32px; box-shadow:0 10px 30px rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.04); display:flex; align-items:center; gap:24px; margin-bottom:40px;">
+            <div style="width:80px; height:80px; border-radius:50%; background:conic-gradient(from ${myProgress * 3.6}deg, #e5e5ea, #e5e5ea), conic-gradient(#007aff, #34c759); display:flex; justify-content:center; align-items:center; border: 8px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.05);">
+              <div style="background:#fff; width:100%; height:100%; border-radius:50%; display:flex; justify-content:center; align-items:center; font-weight:800; font-size:1.2rem; color:#1c1c1e;">${myProgress}%</div>
             </div>
-            <button class="tm-close" onclick="window.closeStudentTaskModal()">✕</button>
+            <div>
+              <h3 style="margin:0 0 8px 0; font-size:1.4rem; color:#1c1c1e;">Global Completion</h3>
+              <div style="color:#8e8e93; font-weight:600;">${totalCompleted} of ${totalItems} Total Assignments Verified</div>
+            </div>
           </div>
-          <div class="tm-body" id="tmBody"></div>
-        </div>
-      </div>
+          
+          <h3 style="font-size:1.2rem; color:#1c1c1e; margin-bottom:16px;">Tinkering Activities (Missions)</h3>
+          <div style="background:#fff; border-radius:20px; padding:12px 24px; border:1px solid rgba(0,0,0,0.05); margin-bottom:32px;">
+            ${me.missions.map(m => `
+              <div onclick="window.openTADetailModal('${m.id}')" style="cursor:pointer; padding:16px 0; border-bottom:1px solid #f2f2f7; display:flex; justify-content:space-between; align-items:center; transition:0.2s;" onmouseover="this.style.paddingLeft='8px'" onmouseout="this.style.paddingLeft='0'">
+                <span style="font-weight:600; color:#1c1c1e;">${safeStr(m.activityName)}</span> 
+                <span style="background:rgba(0,122,255,0.1); padding:6px 12px; border-radius:10px; color:#007aff; font-size:0.75rem; text-transform:uppercase; font-weight:800;">${m.status||'Assigned'}</span>
+              </div>`).join('') || '<div style="color:#8e8e93; font-style:italic; padding:12px 0;">No missions deployed.</div>'}
+          </div>
 
-      <div id="taskDetailOverlay" class="td-overlay" onclick="if(event.target===this) window.closeTaskDetailModal()">
-        <div class="td-modal">
-          <div class="td-header">
-            <h3 id="tdTitle" style="margin:0; font-size:1.4rem; font-weight:800; color:#111; letter-spacing: -0.02em;">Loading...</h3>
-            <button class="tm-close" onclick="window.closeTaskDetailModal()">✕</button>
+          <h3 style="font-size:1.2rem; color:#1c1c1e; margin-bottom:16px;">Standard Tasks</h3>
+          <div style="background:#fff; border-radius:20px; padding:12px 24px; border:1px solid rgba(0,0,0,0.05);">
+            ${me.tasks.map(t => `
+              <div onclick="window.openTaskDetailModal('${t.id}')" style="cursor:pointer; padding:16px 0; border-bottom:1px solid #f2f2f7; display:flex; justify-content:space-between; align-items:center; transition:0.2s;" onmouseover="this.style.paddingLeft='8px'" onmouseout="this.style.paddingLeft='0'">
+                <span style="font-weight:600; color:#1c1c1e;">${safeStr(t.title)}</span> 
+                <span style="background:rgba(142,142,147,0.1); padding:6px 12px; border-radius:10px; color:#8e8e93; font-size:0.75rem; text-transform:uppercase; font-weight:800;">${t.status||'Assigned'}</span>
+              </div>`).join('') || '<div style="color:#8e8e93; font-style:italic; padding:12px 0;">No tasks assigned.</div>'}
           </div>
-          <div class="td-body" id="tdBody"></div>
         </div>
-      </div>
-    `;
+
+        <div id="taskDetailOverlay" class="td-overlay" onclick="if(event.target===this) window.closeTaskDetailModal()">
+          <div class="td-modal">
+            <div class="td-header">
+              <h3 id="tdTitle" style="margin:0; font-size:1.4rem; font-weight:800; color:#111; letter-spacing: -0.02em;">Loading...</h3>
+              <button class="tm-close" onclick="window.closeTaskDetailModal()">✕</button>
+            </div>
+            <div class="td-body" id="tdBody"></div>
+          </div>
+        </div>
+        <style>@keyframes taFadeIn {from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);}}</style>
+      `;
+    } 
+    // ========================================================================
+    // 🧑‍🏫 ROLE: STAFF VIEW
+    // ========================================================================
+    else {
+      let htmlContent = '';
+      for (const [schoolId, schoolData] of Object.entries(dataArchitecture)) {
+        const studentKeys = Object.keys(schoolData.students);
+        if (studentKeys.length === 0) continue; 
+
+        let schoolTotalItems = 0; 
+        let schoolCompletedItems = 0; 
+        let studentsHTML = '';
+        
+        studentKeys.forEach(studentId => {
+          const student = schoolData.students[studentId];
+          const totalTasks = student.tasks.length;
+          const completedTasks = student.tasks.filter(t => (t.status || '').toLowerCase() === 'completed').length;
+          const totalMissions = student.missions.length;
+          const completedMissions = student.missions.filter(m => (m.status || '').toLowerCase() === 'completed').length;
+          
+          const totalItems = totalTasks + totalMissions;
+          const completedItems = completedTasks + completedMissions;
+
+          schoolTotalItems += totalItems;
+          schoolCompletedItems += completedItems;
+
+          const progressPct = totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
+          const avatarLetter = safeStr(student.name).charAt(0).toUpperCase();
+          const searchStr = `${student.name} ${student.email}`.toLowerCase();
+          let statusCategory = progressPct === 0 ? 'not_started' : (progressPct === 100 ? 'completed' : 'in_progress');
+
+          let tasksPreviewHTML = '';
+          const combinedList = [...student.tasks, ...student.missions];
+          
+          if (combinedList.length === 0) {
+            tasksPreviewHTML = `<div class="snap-no-tasks" style="color:#94a3b8; font-size:0.85rem; font-style:italic;">No tasks or missions assigned</div>`;
+            statusCategory = 'no_tasks';
+          } else {
+            combinedList.slice(0, 3).forEach(item => {
+              const isMission = !!item.activityName; 
+              const title = isMission ? `[TA] ${item.activityName}` : item.title;
+              const status = (item.status || 'assigned').toLowerCase();
+              let statusColor = '#cbd5e1'; 
+              if (status === 'completed') statusColor = '#10b981'; 
+              if (status === 'in progress' || status === 'submitted') statusColor = '#3b82f6'; 
+              
+              tasksPreviewHTML += `<div class="snap-task-item"><div class="snap-task-dot" style="background-color: ${statusColor};"></div><div class="snap-task-title">${safeStr(title || 'Untitled')}</div></div>`;
+            });
+            if (combinedList.length > 3) tasksPreviewHTML += `<div style="font-size:0.75rem; color:#64748b; margin-top:6px; font-weight:600;">+ ${combinedList.length - 3} more items</div>`;
+          }
+
+          studentsHTML += `
+            <div class="snap-student-card" data-search="${searchStr}" data-status="${statusCategory}" onclick="window.openStudentTaskModal(event, '${studentId}')">
+              <div class="snap-student-header">
+                <div class="snap-avatar">${avatarLetter}</div>
+                <div style="flex:1;">
+                  <div class="snap-student-name">${safeStr(student.name)}</div>
+                  <div class="snap-student-meta">${totalTasks} Tasks • ${totalMissions} TAs</div>
+                </div>
+                <div style="font-weight:800; font-size:1.1rem; color:#1c1c1e;">${progressPct}%</div>
+              </div>
+              <div class="snap-progress-track" style="margin-top:12px;">
+                <div class="snap-progress-fill" style="width: ${progressPct}%;"></div>
+              </div>
+              <div class="snap-task-list" style="margin-top:16px;">${tasksPreviewHTML}</div>
+            </div>`;
+        });
+
+        const schoolProgress = schoolTotalItems === 0 ? 0 : Math.round((schoolCompletedItems / schoolTotalItems) * 100);
+        htmlContent += `
+          <div class="snap-school-block" data-school="${schoolId}">
+            <div class="snap-school-trigger" onclick="this.parentElement.classList.toggle('active')">
+              <div class="snap-school-info">
+                <h3>${safeStr(schoolData.schoolName)}</h3>
+                <span class="snap-school-badge">${studentKeys.length} Students Enrolled</span></div>
+              <div class="snap-school-metrics">
+                <div class="snap-metric"><span class="snap-metric-val">${schoolProgress}%</span><span class="snap-metric-lbl">Overall Completion</span></div>
+                <div class="snap-arrow"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div>
+              </div>
+            </div>
+            <div class="snap-school-content"><div class="snap-school-content-inner"><div class="snap-student-grid">${studentsHTML}</div></div></div>
+          </div>`;
+      }
+      
+      if (!htmlContent) htmlContent = `<div style="text-align:center; padding: 60px; color:#71717a; font-weight:600;">No student data available.</div>`;
+
+      const dropdownDisplay = restrictedSchoolId ? 'none' : 'block';
+      
+      container.innerHTML = `
+        ${typeof csss !== 'undefined' ? csss : ''} 
+        <div class="snap-theme-container">
+          <div class="snap-header">
+            <h2>Innovator Telemetry</h2>
+            <p>${restrictedSchoolId ? "Task & Mission progression for your laboratory." : "Task & Mission progression across all institutions."}</p>
+          </div>
+
+          <div class="snap-controls">
+            <div class="snap-search-wrap">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input type="text" id="snapGlobalSearch" class="snap-search" placeholder="Search by student name or email..." onkeyup="window.filterSnapshot()">
+            </div>
+            <select id="snapFilterSchool" class="snap-filter" onchange="window.filterSnapshot()" style="display: ${dropdownDisplay};">
+              ${schoolFilterOptions}
+            </select>
+            <select id="snapFilterProgress" class="snap-filter" onchange="window.filterSnapshot()">
+              <option value="all">All Progress Statuses</option>
+              <option value="completed">100% Completed</option>
+              <option value="in_progress">In Progress (1-99%)</option>
+              <option value="not_started">Not Started (0%)</option>
+              <option value="no_tasks">No Assignments</option>
+            </select>
+          </div>
+          <div id="snapshotAccordionContainer">${htmlContent}</div>
+        </div>
+
+        <div class="tm-backdrop" id="taskModalBackdrop" onclick="if(event.target===this) window.closeStudentTaskModal()">
+          <div class="tm-modal" id="taskModalContent" style="max-width: 700px;">
+            <div class="tm-header">
+              <div>
+                <div style="font-size: 0.8rem; color: #8b5cf6; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Telemetry Manager</div>
+                <h3 id="tmStudentName" style="margin:0; font-size:1.8rem;">Loading...</h3>
+              </div>
+              <button class="tm-close" onclick="window.closeStudentTaskModal()">✕</button>
+            </div>
+            <div class="tm-body" id="tmBody" style="padding: 24px;"></div>
+          </div>
+        </div>
+
+        <div id="taskDetailOverlay" class="td-overlay" onclick="if(event.target===this) window.closeTaskDetailModal()">
+          <div class="td-modal">
+            <div class="td-header">
+              <h3 id="tdTitle" style="margin:0; font-size:1.4rem; font-weight:800; color:#1c1c1e; letter-spacing: -0.02em;">Loading...</h3>
+              <button class="tm-close" onclick="window.closeTaskDetailModal()">✕</button>
+            </div>
+            <div class="td-body" id="tdBody"></div>
+          </div>
+        </div>
+      `;
+    } // End Staff View
+
+    // ========================================================================
+    // 🧠 GLOBAL JAVASCRIPT ENGINES (Available to both views)
+    // ========================================================================
 
     window.filterSnapshot = function() {
       const searchInput = document.getElementById("snapGlobalSearch").value.toLowerCase();
       const schoolFilter = document.getElementById("snapFilterSchool").value;
       const progressFilter = document.getElementById("snapFilterProgress").value;
-
       const schoolBlocks = document.querySelectorAll(".snap-school-block");
 
       schoolBlocks.forEach(block => {
@@ -1388,27 +1545,30 @@ export async function loadStudentSnapshot(db, contentArea, restrictedSchoolId = 
         let hasVisibleStudents = false;
         
         if (schoolFilter !== 'all' && blockSchoolId !== schoolFilter) {
-          block.style.display = 'none';
-          return; 
+          block.style.display = 'none'; return; 
         }
 
         const studentCards = block.querySelectorAll(".snap-student-card");
         studentCards.forEach(card => {
           const cardSearchStr = card.getAttribute("data-search");
           const cardStatus = card.getAttribute("data-status");
-
           const matchesSearch = cardSearchStr.includes(searchInput);
           const matchesProgress = progressFilter === 'all' || cardStatus === progressFilter;
 
           if (matchesSearch && matchesProgress) {
-            card.style.display = 'block';
-            hasVisibleStudents = true;} else {
-            card.style.display = 'none';}});
+            card.style.display = 'block'; hasVisibleStudents = true;
+          } else {
+            card.style.display = 'none';
+          }
+        });
+
         if (hasVisibleStudents) {
           block.style.display = 'block';
-          if (searchInput.length > 0 || progressFilter !== 'all') {
-            block.classList.add('active'); }} else {
-          block.style.display = 'none';}});
+          if (searchInput.length > 0 || progressFilter !== 'all') block.classList.add('active'); 
+        } else {
+          block.style.display = 'none';
+        }
+      });
     };
           
     window.openStudentTaskModal = function(event, studentId) {
@@ -1419,7 +1579,6 @@ export async function loadStudentSnapshot(db, contentArea, restrictedSchoolId = 
       document.getElementById('tmStudentName').innerText = student.name;
       window.renderTaskModalBody(studentId);
       
-      // Trigger the Push-Back & Modal Reveal
       document.body.classList.add("modal-active-body");
       backdrop.classList.add('active');
     };
@@ -1432,30 +1591,118 @@ export async function loadStudentSnapshot(db, contentArea, restrictedSchoolId = 
     window.renderTaskModalBody = function(studentId) {
       const student = window.snapshotStudents[studentId]; 
       const body = document.getElementById('tmBody');
-      if (!student.tasks || student.tasks.length === 0) {
-        body.innerHTML = `<div style="text-align:center; color:#a1a1aa; padding:40px; font-weight:600;">No tasks assigned.</div>`; return;}
       let html = '';
-      student.tasks.forEach(task => {
-        const status = (task.status || 'assigned').toLowerCase();
-        let badgeClass = 'badge-assigned';
-        if (status === 'in progress') badgeClass = 'badge-progress';
-        if (status === 'completed') badgeClass = 'badge-completed';
-        const difficultyStr = safeStr(task.difficulty || 'Beginner');
-        html += `
-          <div class="tm-task-row" id="task-row-${task.id}">
-            <div class="tm-task-info">
-              <h4 onclick="window.openTaskDetailModal('${task.id}')" title="Click to view details">${safeStr(task.title)}</h4>
-              <span class="tm-badge ${badgeClass}">${status}</span>
-              <span class="tm-badge badge-diff">Level: ${difficultyStr}</span>
-            </div>
-            <div class="tm-actions">
-              <button class="tm-btn tm-btn-edit" onclick="window.editTaskInline('${task.id}', '${studentId}')">Edit</button>
-              <button class="tm-btn tm-btn-del" onclick="window.deleteTaskInline('${task.id}', '${studentId}')">Delete</button>
-            </div></div>`;});
+
+      // --- SECTION 1: TINKERING ACTIVITIES ---
+      html += `<h4 style="font-size: 1.1rem; color: #1c1c1e; margin: 0 0 16px 0; border-bottom: 2px solid #f2f2f7; padding-bottom: 8px;">Tinkering Activities (TA)</h4>`;
+      if (!student.missions || student.missions.length === 0) {
+        html += `<div style="color:#a1a1aa; padding:10px 0 20px 0; font-style:italic;">No missions assigned.</div>`;
+      } else {
+        student.missions.forEach(m => {
+          const status = (m.status || 'assigned').toLowerCase();
+          let badgeClass = 'badge-assigned';
+          if (status === 'submitted') badgeClass = 'badge-progress'; 
+          if (status === 'completed') badgeClass = 'badge-completed';
+          
+          // 🔥 FIX: The TA Title is now fully clickable!
+          html += `
+            <div class="tm-task-row" style="background:#f8f9fa; border-left:4px solid #8b5cf6;">
+              <div class="tm-task-info">
+                <div style="font-size:0.75rem; color:#8e8e93; font-weight:800; text-transform:uppercase;">${m.subject || 'Mission'}</div>
+                <h4 onclick="window.openTADetailModal('${m.id}')" title="Click to view mission details" style="cursor:pointer; color:#1c1c1e;">${safeStr(m.activityName)}</h4>
+                <span class="tm-badge ${badgeClass}">${status}</span>
+              </div>
+              <div class="tm-actions">
+                <span style="font-size:0.8rem; color:#8e8e93; font-weight:600;">Grade via TA Reports</span>
+              </div>
+            </div>`;
+        });
+      }
+
+      // --- SECTION 2: STANDARD TASKS ---
+      html += `<h4 style="font-size: 1.1rem; color: #1c1c1e; margin: 24px 0 16px 0; border-bottom: 2px solid #f2f2f7; padding-bottom: 8px;">Standard Tasks</h4>`;
+      if (!student.tasks || student.tasks.length === 0) {
+        html += `<div style="color:#a1a1aa; padding:10px 0; font-style:italic;">No standard tasks assigned.</div>`;
+      } else {
+        student.tasks.forEach(task => {
+          const status = (task.status || 'assigned').toLowerCase();
+          let badgeClass = 'badge-assigned';
+          if (status === 'in progress') badgeClass = 'badge-progress';
+          if (status === 'completed') badgeClass = 'badge-completed';
+          const difficultyStr = safeStr(task.difficulty || 'Beginner');
+          
+          html += `
+            <div class="tm-task-row" id="task-row-${task.id}">
+              <div class="tm-task-info">
+                <h4 onclick="window.openTaskDetailModal('${task.id}')" title="Click to view details">${safeStr(task.title)}</h4>
+                <span class="tm-badge ${badgeClass}">${status}</span>
+                <span class="tm-badge badge-diff">Level: ${difficultyStr}</span>
+              </div>
+              <div class="tm-actions">
+                <button class="tm-btn tm-btn-edit" onclick="window.editTaskInline('${task.id}', '${studentId}')">Edit</button>
+                <button class="tm-btn tm-btn-del" onclick="window.deleteTaskInline('${task.id}', '${studentId}')">Delete</button>
+              </div>
+            </div>`;
+        });
+      }
       body.innerHTML = html;
     };
+
+    // 💎 DETAIL MODAL 1: TINKERING ACTIVITIES (MISSIONS)
+    window.openTADetailModal = async function(taId) {
+      const overlay = document.getElementById("taskDetailOverlay"); // Sharing the exact same overlay DOM!
+      const titleEl = document.getElementById("tdTitle");
+      const bodyEl = document.getElementById("tdBody");
+      if (!overlay) return;
       
-    // 💎 Flawless Detail Trigger
+      titleEl.innerText = "Loading Mission...";
+      bodyEl.innerHTML = "<div style='text-align:center; color:#888; padding:40px; font-weight:600;'>Fetching secure data...</div>";
+      
+      document.body.classList.add("modal-active-body");
+      overlay.classList.add("active");
+
+      try {
+        const taSnap = await window.snapshotGetDoc(window.snapshotDocRef(window.snapshotDb, "tinkering_activities", taId));
+        if (!taSnap.exists()) { bodyEl.innerHTML = "Mission not found."; return; }
+        
+        const ta = taSnap.data();
+        const status = (ta.status || 'assigned').toLowerCase();
+        titleEl.innerText = ta.activityName || "Untitled Mission";
+        
+        let statusColor = '#8e8e93';
+        if (status === 'completed') statusColor = '#34c759';
+        if (status === 'submitted') statusColor = '#007aff';
+
+        bodyEl.innerHTML = `
+          <div style="display:flex; gap:32px; margin-bottom:24px; padding-bottom:24px; border-bottom:1px solid #f1f5f9;">
+            <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">Domain</strong><div style="font-weight:800; font-size:1.1rem; color:#0f172a; margin-top:6px;">${ta.subject || "N/A"}</div></div>
+            <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">System ID</strong><div style="font-weight:800; font-size:1.1rem; color:#0f172a; margin-top:6px;">${ta.activityId || taId.substring(0,6)}</div></div>
+            <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">Status</strong><div style="font-weight:800; font-size:1.1rem; color:${statusColor}; margin-top:6px; text-transform:capitalize;">${status}</div></div>
+          </div>
+          
+          <div style="background:#f8fafc; padding:24px; border-radius:20px; border:1px solid #f1f5f9; margin-bottom:24px;">
+            <strong style="font-size:0.85rem; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Mission Blueprint</strong>
+            <div style="margin-top:12px; font-size:1rem; line-height:1.7; color:#334155; font-weight:500;">${ta.introduction || "No introduction provided."}</div>
+          </div>
+
+          <h4 style="font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">Telemetry Notes</h4>
+          ${ta.studentNotes 
+            ? `<div style="background: #fff8e6; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 0 12px 12px 0; color: #3a3a3c; font-size: 1.05rem; line-height: 1.6; margin-bottom: 24px; font-style: italic;">"${ta.studentNotes}"</div>`
+            : `<div style="color: #94a3b8; font-style: italic; margin-bottom: 24px; padding: 16px; background: #f1f5f9; border-radius: 16px; text-align: center; font-weight: 600;">No field notes logged.</div>`
+          }
+
+          ${ta.submissionURL 
+            ? `<a href="${ta.submissionURL}" target="_blank" style="display:block; text-align:center; background:linear-gradient(135deg, #007aff, #005bb5); color:white; padding:16px; border-radius:16px; font-weight:800; text-decoration:none; transition:transform 0.2s; box-shadow:0 10px 20px rgba(0, 122, 255, 0.25);">🔗 View Mission Evidence ↗</a>` 
+            : `<div style="text-align:center; padding:16px; background:#f1f5f9; color:#94a3b8; border-radius:16px; font-weight:700; font-style:italic;">No evidence link submitted</div>`
+          }
+        `;
+      } catch(e) {
+        console.error(e);
+        bodyEl.innerHTML = "Error loading mission data.";
+      }
+    };
+      
+    // 💎 DETAIL MODAL 2: STANDARD TASKS
     window.openTaskDetailModal = async function(taskId) {
       const overlay = document.getElementById("taskDetailOverlay");
       const titleEl = document.getElementById("tdTitle");
@@ -1476,7 +1723,7 @@ export async function loadStudentSnapshot(db, contentArea, restrictedSchoolId = 
         const progress = Number(task.progress) || 0;
         
         titleEl.innerText = task.title || "Untitled Task";
-bodyEl.innerHTML = `
+        bodyEl.innerHTML = `
           <div style="display:flex; gap:32px; margin-bottom:24px; padding-bottom:24px; border-bottom:1px solid #f1f5f9;">
             <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">Due Date</strong><div style="font-weight:800; font-size:1.1rem; color:#ef4444; margin-top:6px;">${task.dueDate || "N/A"}</div></div>
             <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">Priority</strong><div style="font-weight:800; font-size:1.1rem; color:#0f172a; margin-top:6px;">${task.priority || "Medium"}</div></div>
@@ -1499,7 +1746,6 @@ bodyEl.innerHTML = `
           ${task.submissionURL ? `<a href="${task.submissionURL}" target="_blank" style="display:block; text-align:center; background:linear-gradient(135deg, #4361ee, #3a0ca3); color:white; padding:16px; border-radius:16px; font-weight:800; text-decoration:none; transition:transform 0.2s; box-shadow:0 10px 20px rgba(67, 97, 238, 0.25);">View Student Submission ↗</a>` : `<div style="text-align:center; padding:16px; background:#f1f5f9; color:#94a3b8; border-radius:16px; font-weight:700; font-style:italic;">No file submitted yet</div>`}
         `;
 
-        
         requestAnimationFrame(() => {
           setTimeout(() => {
             const fill = document.getElementById("tdFill");
@@ -1517,17 +1763,17 @@ bodyEl.innerHTML = `
       const overlay = document.getElementById("taskDetailOverlay");
       if (overlay) {
         overlay.classList.remove("active");
-        if (!document.getElementById('taskModalBackdrop').classList.contains('active')) {
+        if (document.getElementById('taskModalBackdrop') && !document.getElementById('taskModalBackdrop').classList.contains('active')) {
           document.body.classList.remove("modal-active-body");
         }
       }
     };
 
+    // INLINE EDITING LOGIC (For Tasks Only)
     window.deleteTaskInline = async function(taskId, studentId) {
       if (!confirm("Delete this task permanently?")) return;
       const row = document.getElementById(`task-row-${taskId}`);
-      row.style.opacity = '0.5';
-      row.style.pointerEvents = 'none';
+      row.style.opacity = '0.5'; row.style.pointerEvents = 'none';
 
       try {
         await deleteDoc(doc(db, "tasks", taskId));
@@ -1535,10 +1781,8 @@ bodyEl.innerHTML = `
         row.style.transform = 'scale(0.9)';
         setTimeout(() => window.renderTaskModalBody(studentId), 300);
       } catch (err) {
-        console.error(err);
         alert("Failed to delete task.");
-        row.style.opacity = '1'; 
-        row.style.pointerEvents = 'auto'; 
+        row.style.opacity = '1'; row.style.pointerEvents = 'auto'; 
       }
     };
         
@@ -1586,35 +1830,20 @@ bodyEl.innerHTML = `
 
       try {
         await updateDoc(doc(db, "tasks", taskId), {
-          title: newTitle,
-          status: newStatus,
-          difficulty: newDiff,
-          studentId: newStudentId
+          title: newTitle, status: newStatus, difficulty: newDiff, studentId: newStudentId
         });
 
         if (oldStudentId !== newStudentId) {
           const taskIndex = window.snapshotStudents[oldStudentId].tasks.findIndex(t => t.id === taskId);
           const taskObj = window.snapshotStudents[oldStudentId].tasks.splice(taskIndex, 1)[0];
-          taskObj.title = newTitle;
-          taskObj.status = newStatus;
-          taskObj.difficulty = newDiff;
-          taskObj.studentId = newStudentId;
-          
-          if (window.snapshotStudents[newStudentId]) {
-            window.snapshotStudents[newStudentId].tasks.push(taskObj);
-          }
+          taskObj.title = newTitle; taskObj.status = newStatus; taskObj.difficulty = newDiff; taskObj.studentId = newStudentId;
+          if (window.snapshotStudents[newStudentId]) window.snapshotStudents[newStudentId].tasks.push(taskObj);
         } else {
           const task = window.snapshotStudents[oldStudentId].tasks.find(t => t.id === taskId);
-          task.title = newTitle;
-          task.status = newStatus;
-          task.difficulty = newDiff;
+          task.title = newTitle; task.status = newStatus; task.difficulty = newDiff;
         }
-
         window.renderTaskModalBody(oldStudentId);
-      } catch (err) {
-        console.error(err);
-        alert("Failed to update task.");
-      }
+      } catch (err) { alert("Failed to update task."); }
     };
 
   } catch (error) {

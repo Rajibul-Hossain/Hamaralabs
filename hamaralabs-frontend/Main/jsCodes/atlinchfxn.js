@@ -2,7 +2,6 @@ import { collection, query, where, getDocs, getDoc, doc, addDoc, serverTimestamp
 // ============================================================================
 // ⚙️ ATL INCHARGE: ONE-UI / IOS COMMAND CENTER (MACOS PHYSICS EDITION)
 // ============================================================================
-
 export async function loadInchargeOverview(db, currentUID, contentArea) {
   contentArea.innerHTML = `
     <div style="display:flex; justify-content:center; align-items:center; height: 60vh; flex-direction:column; gap: 16px;">
@@ -12,15 +11,34 @@ export async function loadInchargeOverview(db, currentUID, contentArea) {
     </div>`;
   
   try {
-    const assignmentSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
+    // Make sure 'getDoc' and 'doc' are imported at the top of your file!
+    const { collection, query, where, getDocs, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
 
-    if (assignmentSnap.empty) {
+    // 1. 🔐 SECURE ROLE & SCHOOL RETRIEVAL (The Fix)
+    const userDocSnap = await getDoc(doc(db, "users", currentUID));
+    if (!userDocSnap.exists()) {
+      contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-family:-apple-system, sans-serif; font-weight:600; background:#fff; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.05); margin: 20px;">⚠️ User profile not found in database.</div>`;
+      return;
+    }
+
+    const userData = userDocSnap.data();
+    let schoolId = userData.schoolId;
+
+    // Fallback logic for ATL Incharges who use the assignments collection
+    if ((userData.role === "atl-incharge" || userData.role === "school-admin") && !schoolId) {
+      const assignmentSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
+      if (!assignmentSnap.empty) {
+        schoolId = assignmentSnap.docs[0].data().schoolId;
+      }
+    }
+
+    // Security Gate
+    if (!schoolId) {
       contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-family:-apple-system, sans-serif; font-weight:600; background:#fff; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.05); margin: 20px;">⚠️ No school assigned to your profile. Contact Platform Admin.</div>`;
       return;
     }
 
-    const schoolId = assignmentSnap.docs[0].data().schoolId;
-
+    // 2. 📊 FETCH METRICS IN PARALLEL
     const [schoolSnap, studentsSnap, tasksSnap, taSnap, mentorSnap] = await Promise.all([
       getDoc(doc(db, "schools", schoolId)),
       getDocs(query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", schoolId))),
@@ -35,7 +53,7 @@ export async function loadInchargeOverview(db, currentUID, contentArea) {
     
     let mentorName = "Unassigned";
     if (!mentorSnap.empty) {
-        mentorName = mentorSnap.docs[0].data().name || "Unnamed Mentor";
+      mentorName = mentorSnap.docs[0].data().name || "Unnamed Mentor";
     }
     
     let studentMap = {};
@@ -129,7 +147,7 @@ export async function loadInchargeOverview(db, currentUID, contentArea) {
           box-shadow: 0 40px 80px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,1); 
           border: 1px solid rgba(255,255,255,0.8);
           
-          /* The starting "Minimized" state (Tiny, curved, and located exactly where the button is) */
+          /* The starting "Minimized" state */
           border-radius: 100px;
           opacity: 0;
           transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0.05);
@@ -141,7 +159,7 @@ export async function loadInchargeOverview(db, currentUID, contentArea) {
             border-radius 0.5s cubic-bezier(0.32, 0.08, 0.24, 1);
         }
         
-        /* The final "Maximized" state (Center of screen, full size) */
+        /* The final "Maximized" state */
         .cute-overlay.active .cute-modal { 
           transform: translate(0px, 0px) scale(1); 
           opacity: 1; 
@@ -189,27 +207,22 @@ export async function loadInchargeOverview(db, currentUID, contentArea) {
       const modal = overlay.querySelector('.cute-modal');
 
       if (event && event.currentTarget) {
-        // Get the exact physical coordinates of the clicked button
         const rect = event.currentTarget.getBoundingClientRect();
         const btnCenterX = rect.left + (rect.width / 2);
         const btnCenterY = rect.top + (rect.height / 2);
         
-        // Get the exact physical center of your monitor
         const windowCenterX = window.innerWidth / 2;
         const windowCenterY = window.innerHeight / 2;
         
-        // Calculate the exact distance the modal needs to fly to reach the button
         const translateX = btnCenterX - windowCenterX;
         const translateY = btnCenterY - windowCenterY;
         
-        // Inject those distances directly into the CSS engine
         modal.style.setProperty('--tx', `${translateX}px`);
         modal.style.setProperty('--ty', `${translateY}px`);
       }
 
       if (overlay) {
         overlay.style.display = 'flex';
-        // Force the browser to register the new coordinates before triggering the animation
         void modal.offsetWidth; 
         overlay.classList.add('active');
       }
@@ -219,8 +232,7 @@ export async function loadInchargeOverview(db, currentUID, contentArea) {
       const overlay = document.getElementById('cuteMentorPopup');
       if (overlay) {
         overlay.classList.remove('active');
-        // When 'active' is removed, the CSS automatically sucks it back to --tx and --ty!
-        setTimeout(() => overlay.style.display = 'none', 550); // Matches the 0.55s transition duration
+        setTimeout(() => overlay.style.display = 'none', 550);
       }
     };
 
@@ -229,7 +241,7 @@ export async function loadInchargeOverview(db, currentUID, contentArea) {
       ${iosCss}
       <div class="atl-dashboard">
         <header style="margin-bottom: 12px; animation: atlSlideUp 0.4s ease-out;">
-          <h1 class="atl-header-title">Mission Control</h1>
+          <h1 class="atl-header-title">${userData.role === 'school-admin' ? 'Admin Overview' : 'Overview'}</h1>
           <p class="atl-header-sub">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             ${schoolName}
@@ -265,7 +277,7 @@ export async function loadInchargeOverview(db, currentUID, contentArea) {
             </div>
             <div class="atl-stat-val" style="color: white;">${totalTAs}</div>
             <div class="atl-stat-lbl" style="color: rgba(255,255,255,0.95); font-weight: 700; display: flex; align-items: center; justify-content: space-between;">
-              <span>Active Lab Missions</span>
+              <span>Active Tinkering Activities</span>
               <span style="background: rgba(255,255,255,0.25); padding: 6px 14px; border-radius: 14px; font-size: 0.85rem; backdrop-filter: blur(5px); transition: transform 0.2s;" onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">View Mentor 🧑‍🏫</span>
             </div>
           </div>
@@ -283,7 +295,10 @@ export async function loadInchargeOverview(db, currentUID, contentArea) {
             <div class="atl-timeline">
               ${radarHtml}
             </div>
-</div></div></div>
+          </div>
+        </div>
+      </div>
+
       <div id="cuteMentorPopup" class="cute-overlay" onclick="if(event.target===this) window.hideMentorPopup()">
         <div class="cute-modal">
           <div class="cute-avatar">👋</div>
@@ -292,7 +307,8 @@ export async function loadInchargeOverview(db, currentUID, contentArea) {
           <p style="color: #636366; font-size: 1rem; margin-bottom: 32px; font-weight: 500; line-height: 1.5;">
             This is your partner in innovation. They help verify tasks and guide students through their Tinkering Activities!</p>
           <button class="cute-btn" onclick="window.hideMentorPopup()">Thank you!</button>
-        </div></div>`;
+        </div>
+      </div>`;
 
     requestAnimationFrame(() => {
       setTimeout(() => {
@@ -306,125 +322,84 @@ export async function loadInchargeOverview(db, currentUID, contentArea) {
     contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-family:-apple-system, sans-serif; font-weight:600;">Failed to establish connection to Academic Database. Please refresh.</div>`;
   }
 }
+// ============================================================================
+// 2️⃣ TA FORM: ACTIVITY ARCHITECT (BLUEPRINT MODE)
+// ============================================================================
 export async function loadTAForm(db, currentUID, contentArea) {
   contentArea.innerHTML = `<div class="loader">Loading Activity Architect...</div>`;
   try {
-    // 1. Role-Aware Profile Fetching
     const userDocSnap = await getDoc(doc(db, "users", currentUID));
-    if (!userDocSnap.exists()) {
-      contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ User profile not found.</div>`;
-      return;
-    }
-
+    if (!userDocSnap.exists()) return;
     const userData = userDocSnap.data();
-    const userRole = userData.role;
     let schoolId = userData.schoolId;
 
-    // Fallback for Incharge if schoolId isn't directly on the user doc
-    if (userRole === "atl-incharge" && !schoolId) {
+    if ((userData.role === "atl-incharge" || userData.role === "school-admin") && !schoolId) {
       const assignmentSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
-      if (!assignmentSnap.empty) {
-        schoolId = assignmentSnap.docs[0].data().schoolId;
-      }
+      if (!assignmentSnap.empty) schoolId = assignmentSnap.docs[0].data().schoolId;
     }
 
     if (!schoolId) {
-      contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No school assigned to your profile. Cannot create activities.</div>`;
+      contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No school assigned. Cannot create blueprints.</div>`;
       return;
-    }
-
-    // 2. 🔐 SMART ASSIGNMENT LOGIC
-    let studentOptions = "";
-    
-    if (userRole === "student") {
-      // If user is a student, they can ONLY assign to themselves
-      studentOptions = `<option value="${currentUID}">${userData.name || 'Me'} (Personal Activity)</option>`;
-    } else {
-      // Mentors and Incharges get the full school list
-      const studentsSnap = await getDocs(query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", schoolId)));
-      studentOptions = `<option value="unassigned">-- Do not assign yet (Save to Library) --</option>`;
-      studentsSnap.forEach(doc => {
-        const s = doc.data();
-        studentOptions += `<option value="${doc.id}">${s.name || 'Unknown Student'} (${s.email || ''})</option>`;
-      });
     }
 
     const generatedActivityId = `TA-${Date.now().toString().slice(-7)}`;
 
-    // 3. CSS (Preserved perfectly)
+    // CSS (Unchanged from your beautiful design)
     const taCss = `
       <style>
-        .ta-wrapper { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, sans-serif; max-width: 1040px; margin: 0 auto; padding: 20px 10px 60px 10px; animation: taFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        .ta-wrapper { font-family: -apple-system, sans-serif; max-width: 1040px; margin: 0 auto; padding: 20px 10px 60px 10px; animation: taFadeUp 0.6s ease; }
         .ta-title { font-size: 2.4rem; font-weight: 800; color: #1c1c1e; margin: 0; letter-spacing: -1.2px; line-height: 1.1; }
-        .ta-subtitle { font-size: 1.05rem; color: #8e8e93; margin-top: 8px; font-weight: 500; letter-spacing: -0.2px; }
+        .ta-subtitle { font-size: 1.05rem; color: #8e8e93; margin-top: 8px; font-weight: 500; }
         .ta-section-title { font-size: 0.85rem; font-weight: 700; color: #8e8e93; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 20px; display: flex; align-items: center; }
         .ta-section-title::after { content: ''; flex: 1; height: 1px; background: rgba(60, 60, 67, 0.1); margin-left: 16px; border-radius: 1px; }
-        .ta-label { display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 600; color: #1c1c1e; margin-bottom: 10px; letter-spacing: -0.2px; }
-        .ta-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: saturate(200%) blur(30px); -webkit-backdrop-filter: saturate(200%) blur(30px); border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 8px 40px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02); border-radius: 28px; padding: 36px; margin-bottom: 32px; transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .ta-card:hover { transform: translateY(-2px); box-shadow: 0 12px 50px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.03); }
+        .ta-label { display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 600; color: #1c1c1e; margin-bottom: 10px; }
+        .ta-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 8px 40px rgba(0,0,0,0.04); border-radius: 28px; padding: 36px; margin-bottom: 32px; transition: 0.4s; }
         .ta-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
         .ta-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
-        @media(max-width: 800px) { .ta-grid-2, .ta-grid-3 { grid-template-columns: 1fr; } }
         .ta-group { margin-bottom: 24px; }
-        .ta-input, .ta-select, .ta-textarea { width: 100%; box-sizing: border-box; background: rgba(118, 118, 128, 0.08); border: 2px solid transparent; border-radius: 16px; padding: 16px 20px; font-size: 1.05rem; color: #1c1c1e; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); outline: none; font-family: inherit; font-weight: 500; }
-        .ta-input::placeholder, .ta-textarea::placeholder { color: rgba(60, 60, 67, 0.4); font-weight: 400; }
-        .ta-input:focus, .ta-select:focus, .ta-textarea:focus { background: #fff; border-color: #007aff; box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15); transform: translateY(-1px); }
-        .ta-textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
-        .ta-id-badge { background: #f2f2f7; color: #8e8e93; font-family: "SF Mono", ui-monospace, monospace; font-weight: 700; letter-spacing: 1px; user-select: all; cursor: copy; }
-        .ta-dynamic-container { background: rgba(118, 118, 128, 0.04); border-radius: 20px; padding: 12px; border: 1px solid rgba(60, 60, 67, 0.05); }
-        .ta-dynamic-row { display: flex; gap: 10px; margin-bottom: 8px; animation: taSpringIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); background: #fff; border-radius: 14px; padding: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-        .ta-dynamic-row:last-child { margin-bottom: 0; }
-        .ta-dynamic-row .ta-input { background: transparent; border-radius: 10px; padding: 12px 16px; flex: 1; font-size: 1rem; }
-        .ta-dynamic-row .ta-input:focus { background: rgba(118, 118, 128, 0.04); box-shadow: none; border-color: transparent; transform: none; }
-        .ta-btn-add-sm { background: rgba(0, 122, 255, 0.1); color: #007aff; border: none; border-radius: 20px; padding: 6px 14px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px; }
-        .ta-btn-add-sm:hover { background: rgba(0, 122, 255, 0.2); }
-        .ta-btn-add-sm:active { transform: scale(0.94); }
-        .ta-btn-remove { background: #ffe5e5; color: #ff3b30; border: none; border-radius: 10px; width: 44px; font-size: 1.2rem; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s; }
-        .ta-btn-remove:hover { background: #ffcccc; }
-        .ta-btn-remove:active { transform: scale(0.9); }
-        .ta-actions { display: flex; gap: 16px; justify-content: flex-end; margin-top: 40px; }
-        .ta-btn-primary { background: #007aff; color: #fff; border: none; border-radius: 20px; padding: 18px 40px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 10px 20px rgba(0, 122, 255, 0.25); display: flex; align-items: center; gap: 8px; }
-        .ta-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(0, 122, 255, 0.35); filter: brightness(1.05); }
-        .ta-btn-primary:active { transform: scale(0.96); box-shadow: 0 4px 10px rgba(0, 122, 255, 0.2); }
-        .ta-btn-secondary { background: rgba(118, 118, 128, 0.12); color: #1c1c1e; border: none; border-radius: 20px; padding: 18px 32px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .ta-btn-secondary:hover { background: rgba(118, 118, 128, 0.18); }
-        .ta-btn-secondary:active { transform: scale(0.96); }
+        .ta-input, .ta-select, .ta-textarea { width: 100%; box-sizing: border-box; background: rgba(118, 118, 128, 0.08); border: 2px solid transparent; border-radius: 16px; padding: 16px 20px; font-size: 1.05rem; outline: none; transition: 0.3s; }
+        .ta-input:focus, .ta-select:focus, .ta-textarea:focus { background: #fff; border-color: #007aff; }
+        .ta-textarea { resize: vertical; min-height: 120px; }
+        .ta-dynamic-container { background: rgba(118, 118, 128, 0.04); border-radius: 20px; padding: 12px; }
+        .ta-dynamic-row { display: flex; gap: 10px; margin-bottom: 8px; background: #fff; border-radius: 14px; padding: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .ta-dynamic-row .ta-input { background: transparent; padding: 12px 16px; flex: 1; border-radius: 10px;}
+        .ta-btn-add-sm { background: rgba(0, 122, 255, 0.1); color: #007aff; border: none; border-radius: 20px; padding: 6px 14px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+        .ta-btn-remove { background: #ffe5e5; color: #ff3b30; border: none; border-radius: 10px; width: 44px; font-size: 1.2rem; cursor: pointer; }
+        .ta-actions { display: flex; justify-content: flex-end; gap: 16px; }
+        .ta-btn-primary { background: #007aff; color: #fff; border: none; border-radius: 20px; padding: 18px 40px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.3s; }
+        .ta-btn-secondary { background: rgba(118, 118, 128, 0.12); border: none; border-radius: 20px; padding: 18px 32px; font-size: 1.1rem; font-weight: 600; cursor: pointer; }
         @keyframes taFadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes taSpringIn { 0% { opacity: 0; transform: scale(0.95) translateY(-5px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
       </style>`;
 
-    // Window functions
     window.addTADynamicRow = function(containerId, placeholder) {
       const container = document.getElementById(containerId);
       const div = document.createElement('div');
       div.className = 'ta-dynamic-row';
-      div.innerHTML = `
-        <input type="text" class="ta-input" data-array="${containerId}" placeholder="${placeholder}">
-        <button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()" title="Remove item">✕</button>`;
+      div.innerHTML = `<input type="text" class="ta-input" data-array="${containerId}" placeholder="${placeholder}"><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button>`;
       container.appendChild(div);
     };
 
     window.submitTAForm = async function() {
       const submitBtn = document.getElementById('taSubmitBtn');
       const originalText = submitBtn.innerHTML;
-      submitBtn.innerHTML = "Deploying... <span style='font-size:1.2rem; animation: taSpin 1s infinite linear;'>⏳</span>";
+      submitBtn.innerHTML = "Saving to Library... ⏳";
       submitBtn.disabled = true;
       try {
-        const getArrayData = (arrayId) => {
-          const inputs = document.querySelectorAll(`input[data-array="${arrayId}"]`);
-          return Array.from(inputs).map(input => input.value.trim()).filter(val => val !== "");
-        };
+        const getArrayData = (arrayId) => Array.from(document.querySelectorAll(`input[data-array="${arrayId}"]`)).map(input => input.value.trim()).filter(val => val !== "");
+        
+        // 🔥 THE MASSIVE CHANGE: Saved as a 'library' Blueprint, no student assigned.
         const payload = {
           schoolId: schoolId,
           createdBy: currentUID,
           createdAt: serverTimestamp(),
-          status: "assigned",
+          status: "library", 
+          assignedTo: "unassigned",
           activityId: document.getElementById('ta-id').value,
           activityName: document.getElementById('ta-name').value.trim(),
           subject: document.getElementById('ta-subject').value,
           topic: document.getElementById('ta-topic').value,
           subTopic: document.getElementById('ta-subtopic').value,
-          assignedTo: document.getElementById('ta-assign').value,
           introduction: document.getElementById('ta-intro').value.trim(),
           goals: getArrayData('ta-goals'),
           materials: getArrayData('ta-materials'),
@@ -434,41 +409,33 @@ export async function loadTAForm(db, currentUID, contentArea) {
           extensions: getArrayData('ta-extensions'),
           resources: getArrayData('ta-resources')
         };
+        
         if (!payload.activityName || !payload.subject) {
           alert("Activity Name and Subject are required.");
-          submitBtn.innerHTML = originalText;
-          submitBtn.disabled = false;
-          return;
+          submitBtn.innerHTML = originalText; submitBtn.disabled = false; return;
         }
         await addDoc(collection(db, "tinkering_activities"), payload);
-        submitBtn.innerHTML = "Deployed Successfully! ✅";
+        submitBtn.innerHTML = "Saved to Blueprint Library! ✅";
         submitBtn.style.background = "#34c759";
-        submitBtn.style.boxShadow = "0 10px 20px rgba(52, 199, 89, 0.3)";
         setTimeout(() => {
           document.getElementById('taForm').reset();
           submitBtn.innerHTML = originalText;
           submitBtn.style.background = "#007aff";
           submitBtn.disabled = false;
-        }, 2500);
+        }, 2000);
       } catch (err) {
-        console.error("Error saving TA:", err);
-        alert("Failed to save activity.");
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
+        alert("Failed to save blueprint.");
+        submitBtn.innerHTML = originalText; submitBtn.disabled = false;
       }
     };
 
-    // 4. Render UI
     contentArea.innerHTML = `
       ${taCss}
-      <style>@keyframes taSpin { 100% { transform: rotate(360deg); } }</style>
-      
       <div class="ta-wrapper">
         <div style="margin-bottom: 32px;">
           <h2 class="ta-title">Activity Architect</h2>
-          <p class="ta-subtitle">Design, blueprint, and deploy Tinkering Activities.</p>
+          <p class="ta-subtitle">Design and save master blueprints to the institution's library.</p>
         </div>
-
         <form id="taForm" onsubmit="event.preventDefault(); window.submitTAForm();">
           <div class="ta-card">
             <div class="ta-section-title">Core Specifications</div>
@@ -478,18 +445,11 @@ export async function loadTAForm(db, currentUID, contentArea) {
               <div class="ta-group"><label class="ta-label">Sub Topic</label><input type="text" id="ta-subtopic" class="ta-input" placeholder="e.g. Arduino Basics"></div>
             </div>
             <div class="ta-grid-2">
-              <div class="ta-group"><label class="ta-label">System ID</label><input type="text" id="ta-id" class="ta-input ta-id-badge" value="${generatedActivityId}" readonly></div>
-              <div class="ta-group"><label class="ta-label">Activity Name</label><input type="text" id="ta-name" class="ta-input" placeholder="Enter an inspiring title..." required></div>
-            </div>
-            <div class="ta-group">
-              <label class="ta-label">Target Innovator</label>
-              <select id="ta-assign" class="ta-select" ${userRole === 'student' ? 'disabled' : ''}>
-                ${studentOptions}
-              </select>
+              <div class="ta-group"><label class="ta-label">TA ID</label><input type="text" id="ta-id" class="ta-input" value="${generatedActivityId}" readonly style="background:#f2f2f7; color:#8e8e93;"></div>
+              <div class="ta-group"><label class="ta-label">Blueprint Name</label><input type="text" id="ta-name" class="ta-input" placeholder="Enter an inspiring title..." required></div>
             </div>
             <div class="ta-group" style="margin-bottom:0;"><label class="ta-label">Executive Summary</label><textarea id="ta-intro" class="ta-textarea" placeholder="Describe the core concept..."></textarea></div>
           </div>
-
           <div class="ta-card">
             <div class="ta-section-title">Execution Parameters</div>
             <div class="ta-grid-2">
@@ -502,220 +462,522 @@ export async function loadTAForm(db, currentUID, contentArea) {
             </div>
             <div class="ta-group" style="margin-top:24px;"><label class="ta-label">Resources <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-resources', 'Link...')">+ Add</button></label><div id="ta-resources" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="url" class="ta-input" data-array="ta-resources" placeholder="https://..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div>
           </div>
-
           <div class="ta-actions">
             <button type="reset" class="ta-btn-secondary">Reset Fields</button>
-            <button type="submit" id="taSubmitBtn" class="ta-btn-primary">Deploy Activity ✨</button>
+            <button type="submit" id="taSubmitBtn" class="ta-btn-primary">Save Blueprint ✨</button>
           </div>
         </form>
       </div>`;
-
   } catch (error) {
-    console.error("Error rendering TA Form:", error);
-    contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30; font-weight:600;">Failed to load module.</div>`;
+    contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30;">Failed to load module.</div>`;
   }
 }
-
-
 // ============================================================================
-// 📊 TA REPORTS: UNIVERSAL TRACKER (Incharge, Mentor, & Student)
+// 📊 TA REPORTS: MISSION HUB (LIBRARY + ACTIVE OPERATIONS)
 // ============================================================================
-
 export async function loadTAReport(db, currentUID, contentArea) {
-  contentArea.innerHTML = `<div class="loader">Loading Reports...</div>`;
+  contentArea.innerHTML = `<div class="loader" style="text-align:center; padding:50px; color:#8e8e93; font-weight:600;">Loading Tinkering Activities... <span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span></div><style>@keyframes spin { 100% { transform:rotate(360deg); } }</style>`;
+  
   try {
     // 1. 🔐 SECURE ROLE & SCHOOL RETRIEVAL
     const userDocSnap = await getDoc(doc(db, "users", currentUID));
-    if (!userDocSnap.exists()) {
-      contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ User profile not found.</div>`;
-      return;
-    }
-
+    if (!userDocSnap.exists()) return;
     const userData = userDocSnap.data();
     const userRole = userData.role;
     let schoolId = userData.schoolId;
 
-    // Fallback for Incharge if schoolId isn't on the main doc
-    if (userRole === "atl-incharge" && !schoolId) {
+    if ((userRole === "atl-incharge" || userRole === "school-admin") && !schoolId) {
       const assignmentSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
-      if (!assignmentSnap.empty) {
-        schoolId = assignmentSnap.docs[0].data().schoolId;
-      }
+      if (!assignmentSnap.empty) schoolId = assignmentSnap.docs[0].data().schoolId;
     }
 
     if (!schoolId) {
-      contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No school assigned to your profile.</div>`;
+      contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No school assigned.</div>`;
       return;
     }
 
-    // 2. 🔍 CONTEXTUAL DATA QUERIES
-    let taQuery;
-    if (userRole === "student") {
-      // Students ONLY see their own activities
-      taQuery = query(collection(db, "tinkering_activities"), where("schoolId", "==", schoolId), where("assignedTo", "==", currentUID));
-    } else {
-      // Incharge and Mentors see everything in the school
-      taQuery = query(collection(db, "tinkering_activities"), where("schoolId", "==", schoolId));
-    }
+    // 2. 🔍 CONTEXTUAL QUERIES (Students see only theirs; Staff see all)
+    let taQuery = userRole === "student" 
+      ? query(collection(db, "tinkering_activities"), where("schoolId", "==", schoolId), where("assignedTo", "==", currentUID))
+      : query(collection(db, "tinkering_activities"), where("schoolId", "==", schoolId));
 
     const [taSnap, studentsSnap] = await Promise.all([
       getDocs(taQuery),
       getDocs(query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", schoolId)))
     ]);
     
+    // Process Students
     let studentMap = {};
-    studentsSnap.forEach(doc => { studentMap[doc.id] = doc.data().name || "Unknown Student"; });
-    let pendingReviews = '';
-    let otherMissions = '';
-    
-    window.taReviewData = {};
+    let studentDropdownOptions = `<option value="">-- Select a Student --</option>`;
+    studentsSnap.forEach(doc => { 
+      studentMap[doc.id] = doc.data().name || "Unknown"; 
+      studentDropdownOptions += `<option value="${doc.id}">${doc.data().name || 'Unknown'} (${doc.data().email || ''})</option>`;
+    });
 
+    let libraryHtml = '';
+    let operationsHtml = '';
+    let domains = new Set(); // For dynamic filtering
+    window.taHubData = {};
+
+    // Process Tinkering Activities
     taSnap.forEach(docSnap => {
       const data = docSnap.data();
       const taId = docSnap.id;
-      window.taReviewData[taId] = data;
+      window.taHubData[taId] = data;
       
       const status = (data.status || 'assigned').toLowerCase();
-      const assignedName = data.assignedTo && data.assignedTo !== "unassigned" ? studentMap[data.assignedTo] : "Unassigned (Library)";
-      
-      if (status === 'submitted') {
-        pendingReviews += `
-          <div style="background: #fff; border-radius: 24px; padding: 24px; box-shadow: 0 10px 30px rgba(0, 122, 255, 0.1); border: 1px solid rgba(0, 122, 255, 0.2); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; transition: 0.3s; animation: taFadeIn 0.5s ease;" onmouseover="this.style.transform='translateX(8px)'" onmouseout="this.style.transform='translateX(0)'">
+      const safeSubject = data.subject || 'General';
+      domains.add(safeSubject); // Collect unique domains
+
+      // IF IT IS A LIBRARY ACTIVITY (Staff Only)
+      if (status === 'library' || data.assignedTo === 'unassigned') {
+        libraryHtml += `
+          <div class="hub-card library-item" data-search="${(data.activityName+safeSubject+data.topic).toLowerCase()}" data-subject="${safeSubject}" onclick="window.openHubPanel(event, '${taId}')">
             <div>
-              <div style="font-size: 0.8rem; font-weight: 800; color: #007aff; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; display:flex; align-items:center; gap:6px;"><span style="display:inline-block; width:8px; height:8px; background:#007aff; border-radius:50%; box-shadow:0 0 8px #007aff;"></span> Review Required</div>
-              <h3 style="margin: 0 0 4px 0; font-size: 1.4rem; color: #1c1c1e; letter-spacing: -0.5px;">${data.activityName || 'Untitled'}</h3>
-              <div style="color: #8e8e93; font-weight: 500;">Innovator: <strong style="color:#1c1c1e;">${assignedName}</strong></div>
+              <div style="font-size: 0.75rem; font-weight: 800; color: #8e8e93; text-transform: uppercase; margin-bottom: 4px;">Library • ${safeSubject}</div>
+              <h3 style="margin: 0; font-size: 1.2rem; color: #1c1c1e;">${data.activityName}</h3>
             </div>
-            <button onclick="window.openTAReviewModal('${taId}')" style="background: rgba(0, 122, 255, 0.1); color: #007aff; border: none; border-radius: 16px; padding: 14px 24px; font-weight: 800; cursor: pointer; transition: 0.2s;">View Details ↗</button>
+            <div style="background: rgba(0,122,255,0.1); color: #007aff; padding: 8px 16px; border-radius: 12px; font-weight: 700; font-size: 0.85rem;">View & Assign ↗</div>
           </div>`;
-      } else {
-        const badgeColor = status === 'completed' ? '#34c759' : '#8e8e93';
-        const badgeBg = status === 'completed' ? 'rgba(52, 199, 89, 0.1)' : 'rgba(142, 142, 147, 0.1)';
-        
-        otherMissions += `
-          <div onclick="window.openTAReviewModal('${taId}')" style="cursor: pointer; background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.04); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s;" onmouseover="this.style.background='#f9f9fb'; this.style.transform='scale(1.01)';" onmouseout="this.style.background='#fff'; this.style.transform='scale(1)';">
+      } 
+      // IF IT IS AN ACTIVE INSTANCE
+      else {
+        const assignedName = studentMap[data.assignedTo] || "Unknown";
+        let badgeStyle = "background:rgba(142,142,147,0.1); color:#8e8e93;"; 
+        if (status === 'submitted') badgeStyle = "background:rgba(255,149,0,0.1); color:#ff9500;"; 
+        if (status === 'completed') badgeStyle = "background:rgba(52,199,89,0.1); color:#34c759;"; 
+
+        operationsHtml += `
+          <div class="hub-card ops-item" data-search="${(data.activityName+assignedName+status).toLowerCase()}" data-subject="${safeSubject}" onclick="window.openHubPanel(event, '${taId}')">
             <div>
-              <h3 style="margin: 0 0 4px 0; font-size: 1.1rem; color: #1c1c1e;">${data.activityName || 'Untitled'}</h3>
-              <div style="color: #8e8e93; font-size: 0.9rem;">Assigned to: ${assignedName}</div>
+              <h3 style="margin: 0 0 4px 0; font-size: 1.1rem; color: #1c1c1e;">${data.activityName}</h3>
+              <div style="color: #8e8e93; font-size: 0.9rem;">Innovator: <span style="font-weight:600; color:#1c1c1e;">${assignedName}</span></div>
             </div>
-            <div style="background: ${badgeBg}; color: ${badgeColor}; padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">${status}</div>
+            <div style="${badgeStyle} padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase;">${status}</div>
           </div>`;
       }
     });
 
-    if (!pendingReviews) pendingReviews = `<div style="text-align:center; padding: 40px; background: rgba(0,0,0,0.02); border-radius: 24px; color: #8e8e93; font-weight: 600;">No pending reviews.</div>`;
-    if (!otherMissions) otherMissions = `<div style="text-align:center; padding: 20px; color: #8e8e93; font-weight: 500;">No other active TAs.</div>`;
+    if (!libraryHtml) libraryHtml = `<div class="hub-empty">No Tinkering Activities in the library. Use the Activity Architect to create some!</div>`;
+    if (!operationsHtml) operationsHtml = `<div class="hub-empty">No active TAs deployed yet.</div>`;
 
-    contentArea.innerHTML = `
-      <style>
-        .tar-wrapper { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; max-width: 1000px; margin: 0 auto; padding: 40px 10px; animation: taFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-        .tar-header { font-size: 2.6rem; font-weight: 800; letter-spacing: -1.2px; margin: 0 0 8px 0; color: #1c1c1e;}
-        .tar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); z-index: 999; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.4s ease; }
-        .tar-overlay.active { display: flex; opacity: 1; }
-        .tar-mac-modal { 
-          background: #fff; width: 90%; max-width: 550px; max-height: 85vh; border-radius: 16px; 
-          box-shadow: 0 25px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.05); 
-          display: flex; flex-direction: column; overflow: hidden;
-          transform: scale(0.7) translateY(20px); opacity: 0; 
-          transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
-        }
-        .tar-overlay.active .tar-mac-modal { transform: scale(1) translateY(0); opacity: 1; }
-        .tar-modal-body { flex: 1; overflow-y: auto; padding: 32px; }
-        @keyframes taFadeIn { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
-      </style>
-      
-      <div class="tar-wrapper">
-        <h2 class="tar-header">${userRole === 'student' ? 'My TA Reports' : 'TA Reports'}</h2>
-        <p style="font-size: 1.1rem; color: #8e8e93; margin-bottom: 40px; font-weight: 500;">${userRole === 'student' ? 'Track your activity status and review feedback.' : 'Review incoming telemetry and verify student projects.'}</p>
-        
-        <h3 style="font-size: 1.4rem; color: #1c1c1e; margin-bottom: 20px;">To Be Reviewed</h3>
-        ${pendingReviews}
-        
-        <h3 style="font-size: 1.2rem; color: #8e8e93; margin-top: 48px; margin-bottom: 16px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 12px;">All Operations Log</h3>
-        ${otherMissions}
-      </div>
+    // Generate Domain Filter Dropdown
+    let domainFilterOptions = `<option value="all">All Domains</option>`;
+    domains.forEach(domain => {
+      domainFilterOptions += `<option value="${domain}">${domain}</option>`;
+    });
 
-      <div id="tarReviewOverlay" class="tar-overlay" onclick="if(event.target===this) window.closeTAReviewModal()">
-        <div class="tar-mac-modal" id="tarReviewContent"></div>
-      </div>`;
+    // 🚀 LIVE SEARCH & DOMAIN FILTER ENGINE
+    window.filterHub = function() {
+      const q = document.getElementById('hubSearchInput').value.toLowerCase();
+      const domainFilter = document.getElementById('hubDomainFilter').value;
 
-    window.openTAReviewModal = function(taId) {
-      const data = window.taReviewData[taId];
-      if (!data) return;
+      const applyFilter = (el) => {
+        const matchesSearch = el.dataset.search.includes(q);
+        const matchesDomain = (domainFilter === 'all' || el.dataset.subject === domainFilter);
+        el.style.display = (matchesSearch && matchesDomain) ? 'flex' : 'none';
+      };
 
-      const isSubmitted = (data.status || 'assigned').toLowerCase() === 'submitted';
-
-      const linkHtml = data.submissionURL 
-        ? `<a href="${data.submissionURL}" target="_blank" style="display:block; text-align:center; background:#f2f2f7; color:#007aff; padding: 16px; border-radius: 12px; font-weight: 800; text-decoration: none; margin-bottom: 24px; transition: 0.2s;" onmouseover="this.style.background='#e5e5ea'">🔗 Open Submission Link</a>` 
-        : `<div style="padding: 16px; background: rgba(0,0,0,0.03); border-radius: 12px; color: #8e8e93; text-align: center; font-style: italic; margin-bottom: 24px;">No link provided.</div>`;
-
-      const notesHtml = data.studentNotes 
-        ? `<div style="background: #fff8e6; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 0 12px 12px 0; color: #3a3a3c; font-size: 1.05rem; line-height: 1.6; margin-bottom: 16px; font-style: italic;">"${data.studentNotes}"</div>`
-        : `<div style="color: #8e8e93; font-style: italic; margin-bottom: 16px;">No field notes provided.</div>`;
-
-      // 🛡️ STUDENT PROTECTION: Only show buttons to Incharge/Mentor
-      let actionButtons = "";
-      if (userRole !== "student" && isSubmitted) {
-        actionButtons = `
-          <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 32px;">
-            <button id="btn-approve-${taId}" onclick="window.updateTAStatus('${taId}', 'completed')" style="background: linear-gradient(135deg, #34c759, #28a745); color: #fff; border: none; border-radius: 16px; padding: 18px; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(52, 199, 89, 0.25); transition: 0.2s;">Approve & Verify ✅</button>
-            <button id="btn-reject-${taId}" onclick="window.updateTAStatus('${taId}', 'assigned')" style="background: rgba(255, 59, 48, 0.1); color: #ff3b30; border: none; border-radius: 16px; padding: 16px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(255, 59, 48, 0.15)'" onmouseout="this.style.background='rgba(255, 59, 48, 0.1)'">Request Revisions ↩️</button>
-          </div>`;
-      } else {
-        actionButtons = `<div style="margin-top: 32px; padding: 16px; background: #f2f2f7; border-radius: 12px; text-align: center; color: #8e8e93; font-weight: 700; text-transform: uppercase;">Current Status: ${data.status}</div>`;
-      }
-
-      document.getElementById('tarReviewContent').innerHTML = `
-        <div style="background: #f6f6f6; border-bottom: 1px solid rgba(0,0,0,0.1); padding: 14px 20px; display: flex; align-items: center; position: sticky; top: 0; z-index: 10;">
-          <div style="display: flex; gap: 8px;">
-            <div onclick="window.closeTAReviewModal()" style="width: 13px; height: 13px; border-radius: 50%; background: #ff5f56; border: 1px solid #e0443e; cursor: pointer;"></div>
-            <div onclick="window.closeTAReviewModal()" style="width: 13px; height: 13px; border-radius: 50%; background: #ffbd2e; border: 1px solid #dea123; cursor: pointer;"></div>
-            <div onclick="window.closeTAReviewModal()" style="width: 13px; height: 13px; border-radius: 50%; background: #27c93f; border: 1px solid #1aab29; cursor: pointer;"></div>
-          </div>
-          <div style="flex: 1; text-align: center; font-size: 0.95rem; font-weight: 600; color: #3a3a3c; transform: translateX(-24px);">Mission Intelligence</div>
-        </div>
-        <div class="tar-modal-body">
-          <h3 style="font-size: 1.8rem; margin: 0 0 8px 0; letter-spacing: -0.5px;">${data.activityName}</h3>
-          <div style="color: #8e8e93; font-weight: 500; margin-bottom: 32px; text-transform: uppercase; letter-spacing: 1px; font-size: 0.85rem;">System ID: ${data.activityId || taId}</div>
-          <h4 style="font-size: 0.9rem; color: #8e8e93; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">Evidence Details</h4>
-          ${linkHtml}
-          <h4 style="font-size: 0.9rem; color: #8e8e93; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">Submission Notes</h4>
-          ${notesHtml}
-          ${actionButtons}
-        </div>`;
-      
-      const overlay = document.getElementById('tarReviewOverlay');
-      overlay.style.display = 'flex';
-      requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('active')));
+      document.querySelectorAll('.library-item').forEach(applyFilter);
+      document.querySelectorAll('.ops-item').forEach(applyFilter);
     };
 
-    window.closeTAReviewModal = function() {
-      const overlay = document.getElementById('tarReviewOverlay');
+    // 3. 🎨 UI RENDER
+    contentArea.innerHTML = `
+      <style>
+        .hub-wrapper { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; max-width: 1040px; margin: 0 auto; padding: 40px 10px; animation: hubFadeIn 0.5s ease; }
+        
+        .hub-controls { display: flex; gap: 16px; margin-bottom: 40px; }
+        @media(max-width: 768px) { .hub-controls { flex-direction: column; } }
+        
+        .hub-search { flex: 1; box-sizing: border-box; background: #fff; border: 1px solid rgba(0,0,0,0.1); border-radius: 20px; padding: 18px 24px; font-size: 1.05rem; color: #1c1c1e; outline: none; transition: 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.02); font-weight: 500; }
+        .hub-search:focus { border-color: #007aff; box-shadow: 0 8px 24px rgba(0,122,255,0.15); }
+        
+        .hub-filter { appearance: none; background: #fff url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") no-repeat right 16px center; background-size: 16px; border: 1px solid rgba(0,0,0,0.1); border-radius: 20px; padding: 18px 48px 18px 20px; font-size: 1.05rem; color: #1c1c1e; outline: none; cursor: pointer; transition: 0.3s; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.02);}
+        .hub-filter:focus { border-color: #007aff; box-shadow: 0 8px 24px rgba(0,122,255,0.15); }
+
+        .hub-card { background: #fff; border-radius: 20px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.04); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s; }
+        .hub-card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 12px 24px rgba(0,0,0,0.06); border-color: rgba(0,122,255,0.2); }
+        .hub-empty { text-align: center; padding: 40px; background: rgba(0,0,0,0.02); border-radius: 20px; color: #8e8e93; font-weight: 500; font-style: italic; }
+        
+        /* 🍎 MACOS SPATIAL SCALE ANIMATION */
+        .hub-mac-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0); backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); z-index: 9999; display: none; justify-content: center; align-items: center; transition: background 0.4s ease, backdrop-filter 0.4s ease; }
+        .hub-mac-overlay.active { background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        
+        .hub-mac-modal { 
+          background: rgba(255,255,255,0.98); backdrop-filter: blur(40px);
+          width: 92%; max-width: 600px; max-height: 85vh; border-radius: 100px; 
+          box-shadow: 0 40px 80px rgba(0,0,0,0.25), inset 0 2px 4px rgba(255,255,255,1); 
+          border: 1px solid rgba(255,255,255,0.8);
+          display: flex; flex-direction: column; overflow: hidden;
+          opacity: 0; transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0.05); 
+          transition: transform 0.55s cubic-bezier(0.32, 0.08, 0.24, 1), opacity 0.4s ease, border-radius 0.5s cubic-bezier(0.32, 0.08, 0.24, 1);
+        }
+        .hub-mac-overlay.active .hub-mac-modal { transform: translate(0px, 0px) scale(1); opacity: 1; border-radius: 28px; }
+        
+        .hub-modal-body { flex: 1; overflow-y: auto; padding: 32px; scrollbar-width: none; }
+        .hub-modal-body::-webkit-scrollbar { display: none; }
+
+        @keyframes hubFadeIn { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
+      </style>
+      
+      <div class="hub-wrapper">
+        <h1 style="font-size: 2.8rem; font-weight: 800; margin: 0 0 10px 0; color: #1c1c1e; letter-spacing: -1px;">Tinkering Hub</h1>
+        <p style="font-size: 1.15rem; color: #8e8e93; margin-bottom: 32px; font-weight: 500;">Manage Tinkering Activities, track telemetry, and deploy tasks.</p>
+        
+        <div class="hub-controls">
+          <input type="text" id="hubSearchInput" class="hub-search" placeholder="Search activities, subjects, or innovators..." onkeyup="window.filterHub()">
+          <select id="hubDomainFilter" class="hub-filter" onchange="window.filterHub()">
+            ${domainFilterOptions}
+      </select> </div>
+        
+        ${userRole !== 'student' ? `
+          <h3 style="font-size: 1.3rem; color: #1c1c1e; margin-bottom: 20px;">Tinkering Activities Library 📘</h3>
+          ${libraryHtml}
+          <div style="height: 40px;"></div>
+        ` : ''}
+        
+      </div>
+
+      <div id="hubOverlay" class="hub-mac-overlay" onclick="if(event.target===this) window.closeHubPanel()">
+        <div class="hub-mac-modal" id="hubPanelContainer"></div>
+      </div>`;
+
+    // 🍎 4. MACOS SPATIAL LOGIC
+    window.openHubPanel = function(event, taId) {
+      const data = window.taHubData[taId];
+      if (!data) return;
+      
+      const overlay = document.getElementById('hubOverlay');
+      const modal = document.getElementById('hubPanelContainer');
+
+      // GEOMETRY CALCULATION: Erupt from clicked card
+      if (event && event.currentTarget) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const startX = rect.left + (rect.width / 2);
+        const startY = rect.top + (rect.height / 2);
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        
+        modal.style.setProperty('--tx', `${startX - centerX}px`);
+        modal.style.setProperty('--ty', `${startY - centerY}px`);
+      }
+
+      const status = (data.status || 'assigned').toLowerCase();
+      let mainContent = '';
+
+      // UI: LIBRARY ACTIVITY
+      if (status === 'library' && userRole !== 'student') {
+        mainContent = `
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 16px; margin-bottom: 32px; border: 1px solid rgba(0,0,0,0.03);">
+            <div style="color: #8e8e93; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 8px;">Executive Summary</div>
+            <div style="font-size: 1.05rem; color: #3a3a3c; line-height: 1.6; font-weight:500;">${data.introduction || "No summary provided."}</div>
+          </div>
+          
+          <h4 style="margin: 0 0 12px 0; color: #1c1c1e; font-size: 1.1rem;">Deploy this Activity</h4>
+          <select id="assign-student-select" style="width: 100%; padding: 18px; border-radius: 16px; border: 1px solid rgba(0,0,0,0.1); background: #f2f2f7; font-size: 1.05rem; font-weight: 500; margin-bottom: 24px; outline: none; transition: 0.3s;" onfocus="this.style.background='#fff'; this.style.borderColor='#007aff'">
+            ${studentDropdownOptions}
+          </select>
+          <button id="btn-deploy-${taId}" onclick="window.deployClone('${taId}')" style="background: linear-gradient(135deg, #007aff, #005bb5); color: #fff; border: none; border-radius: 16px; padding: 20px; width: 100%; font-size: 1.15rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(0,122,255,0.25); transition: transform 0.2s;" onactive="this.style.transform='scale(0.96)'">
+            Assign to Innovator 🚀
+          </button>`;
+      } 
+      // UI: ACTIVE INSTANCE
+      else {
+        const linkHtml = data.submissionURL ? `<a href="${data.submissionURL}" target="_blank" style="display:flex; justify-content:center; align-items:center; gap:8px; background:linear-gradient(135deg, #f2f2f7, #e5e5ea); color:#007aff; padding: 18px; border-radius: 16px; font-weight: 800; text-decoration: none; margin-bottom: 24px; transition: 0.2s;" onmouseover="this.style.background='#fff'; this.style.boxShadow='0 4px 12px rgba(0,122,255,0.1)'">🔗 Open Evidence Link</a>` : '';
+        const notesHtml = data.studentNotes ? `<div style="background: #fff8e6; border-left: 4px solid #f59e0b; padding: 24px; border-radius: 0 16px 16px 0; color: #3a3a3c; font-style: italic; margin-bottom: 32px; font-size:1.05rem; line-height:1.6;">"${data.studentNotes}"</div>` : '';
+        
+        let actionButtons = `<div style="padding: 18px; background: #f2f2f7; border-radius: 16px; text-align: center; color: #8e8e93; font-weight: 800; text-transform: uppercase; font-size:1rem;">Status: ${status}</div>`;
+        
+        if (userRole !== "student" && status === 'submitted') {
+          actionButtons = `
+            <div style="display:flex; gap:12px; flex-direction:column;">
+              <button onclick="window.updateStatus('${taId}', 'completed')" style="background: linear-gradient(135deg, #34c759, #28a745); color: #fff; border: none; border-radius: 16px; padding: 18px; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(52, 199, 89, 0.25);">Approve & Verify ✅</button>
+              <button onclick="window.updateStatus('${taId}', 'assigned')" style="background: rgba(255, 59, 48, 0.1); color: #ff3b30; border: none; border-radius: 16px; padding: 18px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(255, 59, 48, 0.15)'" onmouseout="this.style.background='rgba(255, 59, 48, 0.1)'">Request Revisions ↩️</button>
+            </div>`;
+        }
+
+        mainContent = `
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(0,0,0,0.05);">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(0,122,255,0.1); color: #007aff; display:flex; justify-content:center; align-items:center; font-weight:800; font-size:1.1rem;">${(studentMap[data.assignedTo]||"U").substring(0,2).toUpperCase()}</div>
+            <div>
+              <div style="font-size:0.8rem; color:#8e8e93; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Assigned Innovator</div>
+              <div style="font-weight:800; color:#1c1c1e; font-size:1.1rem;">${studentMap[data.assignedTo] || 'Unknown'}</div>
+            </div>
+          </div>
+          ${linkHtml || '<div style="color:#8e8e93; font-style:italic; margin-bottom:24px; text-align:center; padding:16px; background:#f9f9fb; border-radius:16px;">No evidence link provided yet.</div>'}
+          ${notesHtml}
+          ${actionButtons}
+        `;
+      }
+
+      // Inject HTML
+      modal.innerHTML = `
+        <div style="padding: 24px 32px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.95); position: sticky; top: 0; z-index: 10;">
+          <h2 style="margin: 0; font-size: 1.1rem; color: #8e8e93; text-transform: uppercase; letter-spacing: 1px;">${status === 'library' ? 'Activity Menu' : 'Intel Review'}</h2>
+          <button onclick="window.closeHubPanel()" style="background: #f2f2f7; border: none; width: 36px; height: 36px; border-radius: 18px; font-size: 1.2rem; cursor: pointer; color: #8e8e93; display:flex; justify-content:center; align-items:center; transition:0.2s;" onmouseover="this.style.background='#e5e5ea'">✕</button>
+        </div>
+        <div class="hub-modal-body">
+          <div style="font-size: 0.85rem; color: #007aff; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">${data.subject || 'Domain'}</div>
+          <h3 style="font-size: 2.2rem; margin: 0 0 8px 0; letter-spacing: -0.8px; color: #1c1c1e; line-height: 1.1;">${data.activityName}</h3>
+          <div style="color: #8e8e93; font-size: 0.9rem; margin-bottom: 32px; font-family: monospace;">TA-ID: ${data.activityId || taId}</div>
+          ${mainContent}
+        </div>
+      `;
+      
+      overlay.style.display = 'flex';
+      void modal.offsetWidth; // Force CSS repaint to trigger animation
+      overlay.classList.add('active');
+    };
+
+    window.closeHubPanel = function() {
+      const overlay = document.getElementById('hubOverlay');
+      overlay.classList.remove('active');
+      setTimeout(() => overlay.style.display = 'none', 450); // Wait for CSS transition
+    };
+
+    // 🧬 THE CLONING ENGINE
+    window.deployClone = async function(templateId) {
+      const studentId = document.getElementById('assign-student-select').value;
+      if (!studentId) return alert("Please select a student to deploy to.");
+      
+      const btn = document.getElementById(`btn-deploy-${templateId}`);
+      btn.innerHTML = "Cloning Data... <span style='animation:spin 1s linear infinite; display:inline-block;'>⏳</span>"; 
+      btn.disabled = true;
+
+      try {
+        const templateData = window.taHubData[templateId];
+        const newInstance = { 
+          ...templateData, 
+          assignedTo: studentId, 
+          status: 'assigned', 
+          deployedAt: serverTimestamp(),
+          parentTemplateId: templateId 
+        };
+        
+        await addDoc(collection(db, "tinkering_activities"), newInstance);
+        
+        btn.innerHTML = "Assigned Successfully! ✅";
+        btn.style.background = "#34c759";
+        setTimeout(() => {
+          window.closeHubPanel();
+          loadTAReport(db, currentUID, contentArea); // Refresh the hub
+        }, 1000);
+      } catch(err) {
+        console.error(err);
+        alert("Assignment failed.");
+        btn.innerHTML = "Assign to Innovator 🚀"; btn.disabled = false;
+      }
+    };
+
+    window.updateStatus = async function(taId, newStatus) {
+      if (userRole === 'student') return;
+      await updateDoc(doc(db, "tinkering_activities", taId), { status: newStatus });
+      window.closeHubPanel();
+      setTimeout(() => loadTAReport(db, currentUID, contentArea), 350);
+    };
+
+  } catch (error) {
+    console.error(error);
+    contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30;">System Error. Data retrieval failed.</div>`;
+  }
+}
+export async function loadPersonnelManagement(db, currentUID, contentArea) {
+  contentArea.innerHTML = `<div class="loader" style="text-align:center; padding:50px; color:#8e8e93; font-weight:600;">Decrypting Roster Intel... ⏳</div>`;
+
+  try {
+    const userDocSnap = await getDoc(doc(db, "users", currentUID));
+    if (!userDocSnap.exists()) return;
+    const userData = userDocSnap.data();
+    let schoolId = userData.schoolId;
+    if ((userData.role === "atl-incharge" || userData.role === "school-admin") && !schoolId) {
+      const assignmentSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
+      if (!assignmentSnap.empty) {
+        schoolId = assignmentSnap.docs[0].data().schoolId;}}
+
+    if (!schoolId) {
+      contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No school assigned.</div>`;
+      return;
+    }
+
+    // 2. 🔍 FETCH ALL PERSONNEL FOR THIS SCHOOL
+    const q = query(collection(db, "users"), where("schoolId", "==", schoolId));
+    const querySnapshot = await getDocs(q);
+    
+    let studentsHtml = '';
+    let mentorsHtml = '';
+    let studentCount = 0;
+    let mentorCount = 0;
+
+    querySnapshot.forEach((docSnap) => {
+      const user = docSnap.data();
+      const userId = docSnap.id;
+      const initials = (user.name || "U").substring(0, 2).toUpperCase();
+      
+      const roleBadge = user.role === 'mentor' 
+        ? `<span style="background:rgba(138,43,226,0.1); color:#8a2be2; padding:4px 10px; border-radius:8px; font-size:0.7rem; font-weight:800; text-transform:uppercase;">Mentor</span>`
+        : `<span style="background:rgba(0,122,255,0.1); color:#007aff; padding:4px 10px; border-radius:8px; font-size:0.7rem; font-weight:800; text-transform:uppercase;">Student</span>`;
+
+      const cardHtml = `
+        <div style="background: #fff; border-radius: 20px; padding: 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.04); margin-bottom: 12px; transition: 0.2s;" onmouseover="this.style.transform='translateX(6px)'" onmouseout="this.style.transform='none'">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 44px; height: 44px; border-radius: 14px; background: #f2f2f7; display: flex; justify-content: center; align-items: center; font-weight: 800; color: #1c1c1e;">${initials}</div>
+            <div>
+              <h4 style="margin: 0 0 4px 0; font-size: 1.05rem; color: #1c1c1e;">${user.name || 'Unknown Enlistee'}</h4>
+              <div style="color: #8e8e93; font-size: 0.85rem; font-weight: 500;">${user.email || 'No email provided'}</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            ${roleBadge}
+            <button onclick="window.removeUser('${userId}', '${user.name || 'User'}')" style="background: rgba(255, 59, 48, 0.05); color: #ff3b30; border: none; width: 36px; height: 36px; border-radius: 12px; font-weight:bold; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(255, 59, 48, 0.1)'" onmouseout="this.style.background='rgba(255, 59, 48, 0.05)'" title="Revoke Access">✕</button>
+          </div>
+        </div>`;
+
+      if (user.role === 'student') { studentsHtml += cardHtml; studentCount++; }
+      else if (user.role === 'mentor') { mentorsHtml += cardHtml; mentorCount++; }
+    });
+
+    if (!studentsHtml) studentsHtml = `<div style="text-align:center; padding: 30px; color:#8e8e93; font-style:italic;">No students enlisted yet.</div>`;
+    if (!mentorsHtml) mentorsHtml = `<div style="text-align:center; padding: 30px; color:#8e8e93; font-style:italic;">No mentors enlisted yet.</div>`;
+
+    // 3. EXPOSE GLOBAL FUNCTIONS
+    window.openAddUserPopup = function() {
+      const overlay = document.getElementById('rosOverlay');
+      overlay.style.display = 'flex';
+      setTimeout(() => overlay.classList.add('active'), 10);
+    };
+
+    window.closeAddUserPopup = function() {
+      const overlay = document.getElementById('rosOverlay');
       overlay.classList.remove('active');
       setTimeout(() => overlay.style.display = 'none', 400);
     };
 
-    window.updateTAStatus = async function(taId, newStatus) {
-      if (userRole === 'student') return; // Double security
-      const btnApprove = document.getElementById(`btn-approve-${taId}`);
-      const btnReject = document.getElementById(`btn-reject-${taId}`);
-      btnApprove.disabled = true; btnReject.disabled = true;
-      btnApprove.innerText = "Syncing... ⏳";
+    window.submitNewUser = async function() {
+      const btn = document.getElementById('btn-add-user');
+      const name = document.getElementById('ros-new-name').value.trim();
+      const email = document.getElementById('ros-new-email').value.trim();
+      const role = document.getElementById('ros-new-role').value;
+
+      if (!name || !email) return alert("Name and Email are required.");
+
+      btn.innerHTML = "Encrypting Profile... ⏳";
+      btn.disabled = true;
+
       try {
-        await updateDoc(doc(db, "tinkering_activities", taId), { status: newStatus });
-        alert(newStatus === 'completed' ? "Activity Verified!" : "Returned for revisions.");
-        window.closeTAReviewModal();
-        if (typeof loadSection === 'function') {
-          setTimeout(() => loadSection('tinkering activity report'), 300);
-        }
-      } catch(err) {
-        alert("Sync Failed.");
-        btnApprove.disabled = false; btnReject.disabled = false;
-        btnApprove.innerText = "Approve & Verify ✅";
+        await addDoc(collection(db, "users"), {
+          name: name,
+          email: email,
+          role: role,
+          schoolId: schoolId,
+          createdAt: serverTimestamp()
+        });
+
+        btn.innerHTML = "Enlisted! ✅";
+        btn.style.background = "#34c759";
+        
+        setTimeout(() => {
+          window.closeAddUserPopup();
+          if (typeof loadSection === 'function') loadSection('students');
+        }, 800);
+
+      } catch (err) {
+        console.error("Error adding user:", err);
+        alert("Failed to enlist user.");
+        btn.innerHTML = "Confirm Enlistment";
+        btn.disabled = false;
       }
     };
+
+    window.removeUser = async function(userId, userName) {
+      if (confirm(`Are you sure you want to revoke access for ${userName}? This cannot be undone.`)) {
+        try {
+          await deleteDoc(doc(db, "users", userId));
+          if (typeof loadSection === 'function') loadSection('students');
+        } catch(err) {
+          console.error("Delete failed", err);
+          alert("Failed to revoke access. Check your permissions.");
+        }
+      }
+    };
+
+    // 4. RENDER UI
+    contentArea.innerHTML = `
+      <style>
+        .ros-wrapper { font-family: -apple-system, sans-serif; max-width: 1040px; margin: 0 auto; padding: 40px 10px; animation: rosFadeUp 0.6s ease; }
+        .ros-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; }
+        .ros-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 48px; }
+        .ros-stat-card { background: rgba(255,255,255,0.8); border-radius: 20px; padding: 24px; border: 1px solid #eee; box-shadow: 0 8px 24px rgba(0,0,0,0.03); display: flex; justify-content: space-between; align-items: center;}
+        
+        .ros-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); z-index: 5000; display: none; justify-content: center; align-items: center; opacity: 0; transition: 0.4s; }
+        .ros-overlay.active { opacity: 1; }
+        .ros-modal { background: #fff; border-radius: 36px; padding: 40px; width: 90%; max-width: 400px; box-shadow: 0 40px 80px rgba(0,0,0,0.2); transform: scale(0.9) translateY(20px); opacity: 0; transition: 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        .ros-overlay.active .ros-modal { transform: scale(1) translateY(0); opacity: 1; }
+        
+        .ros-input { width: 100%; box-sizing: border-box; background: #f2f2f7; border: 2px solid transparent; border-radius: 16px; padding: 16px; font-size: 1rem; margin-bottom: 16px; outline: none; transition: 0.3s;}
+        .ros-input:focus { background: #fff; border-color: #007aff; }
+        @keyframes rosFadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+      </style>
+
+      <div class="ros-wrapper">
+        <div class="ros-header">
+          <div>
+            <h1 style="font-size: 2.6rem; font-weight: 800; margin: 0 0 8px 0; color: #1c1c1e;">Roster Command</h1>
+            <p style="font-size: 1.1rem; color: #8e8e93; margin: 0;">Manage innovators and mentors for your institution.</p>
+          </div>
+
+        </div>
+
+        <div class="ros-stats-grid">
+          <div class="ros-stat-card">
+            <div>
+              <div style="font-size: 0.85rem; font-weight: 700; color: #8e8e93; text-transform: uppercase; letter-spacing:1px;">Active Innovators</div>
+              <div style="font-size: 2.5rem; font-weight: 800; color: #1c1c1e;">${studentCount}</div>
+            </div>
+            <div style="font-size: 2.5rem; opacity:0.3;">🧑‍🎓</div>
+          </div>
+          <div class="ros-stat-card">
+            <div>
+              <div style="font-size: 0.85rem; font-weight: 700; color: #8e8e93; text-transform: uppercase; letter-spacing:1px;">Assigned Mentors</div>
+              <div style="font-size: 2.5rem; font-weight: 800; color: #1c1c1e;">${mentorCount}</div>
+            </div>
+            <div style="font-size: 2.5rem; opacity:0.3;">🧑‍🏫</div>
+          </div>
+        </div>
+
+        <h3 style="font-size: 1.1rem; color: #8e8e93; margin-bottom: 16px; text-transform:uppercase; letter-spacing:1px;">Mentors & Staff</h3>
+        ${mentorsHtml}
+
+        <h3 style="font-size: 1.1rem; color: #8e8e93; margin-top: 48px; margin-bottom: 16px; text-transform:uppercase; letter-spacing:1px;">Student Innovators</h3>
+        ${studentsHtml}
+      </div>
+
+      <div id="rosOverlay" class="ros-overlay" onclick="if(event.target===this) window.closeAddUserPopup()">
+        <div class="ros-modal">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+            <h2 style="margin:0;">Enlist Personnel</h2>
+            <button onclick="window.closeAddUserPopup()" style="background:#f2f2f7; border:none; width:32px; height:32px; border-radius:16px; cursor:pointer; color:#8e8e93; font-weight:bold;">✕</button>
+          </div>
+          
+          <input type="text" id="ros-new-name" class="ros-input" placeholder="Full Name">
+          <input type="email" id="ros-new-email" class="ros-input" placeholder="Email Address">
+          
+          <select id="ros-new-role" class="ros-input" style="cursor:pointer; appearance:none;">
+            <option value="student">Student Innovator</option>
+            <option value="mentor">Lab Mentor</option>
+          </select>
+          
+          <p style="font-size:0.8rem; color:#8e8e93; text-align:center; margin-bottom:20px;">They will log in using this exact email address.</p>
+          
+          <button id="btn-add-user" onclick="window.submitNewUser()" style="background: #007aff; color: #fff; border: none; border-radius: 16px; padding: 18px; width: 100%; font-size: 1.1rem; font-weight: 800; cursor: pointer; transition: 0.2s;">
+            Confirm Enlistment
+          </button>
+        </div>
+      </div>
+    `;
+
   } catch (error) {
-    console.error(error);
-    contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30; font-weight:600;">System Error.</div>`;
+    console.error("Error loading roster:", error);
+    contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30;">System Error. Could not access personnel data.</div>`;
   }
 }

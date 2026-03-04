@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged} from "https://www.gstatic.com/firebasejs/1
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check.js";
 import { addCheckmarkAnimation, confettiBurst, startPremiumSparkle, regformCSS, regHTML, tinkerCSS } from "./animations.js";
-import { loadAdminOverview, loadAdminSchools, loadAdminUsers } from "./adminFxn.js";
+import { loadAdminOverview, loadAdminSchools, loadAdminUsers, loadStudentSnapshot } from "./adminFxn.js";
 import { dispatchEmailNotification, loadStudentTAs } from "./basicfxns.js";
 import { loadInchargeOverview, loadTAForm, loadTAReport  } from "./atlinchfxn.js";
 const firebaseConfig = {
@@ -17,28 +17,12 @@ const firebaseConfig = {
   measurementId: "G-G0SYKW59P6"
 }; 
 const app = initializeApp(firebaseConfig);
-if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-  self.FIREBASE_APPCHECK_DEBUG_TOKEN = "3fd0c5a2-9d63-425c-a155-b3b52e82bdc9"; 
-}
-try {
-  const appCheck = initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider('6LdX_n0sAAAAAI6o1xRh7rcWsz-Ylft7wnOgGl5j'),
-    isTokenAutoRefreshEnabled: true 
-  });
-  console.log("App Check active: 🛡️ Platform Secured");
-} catch (error) {
-  console.error("App Check failed to initialize:", error);
-}
-const auth = getAuth(app); 
-export const db = getFirestore(app);
-const storage = getStorage(app); 
-const sidebar = document.getElementById("sidebar");
-export const contentArea = document.getElementById("contentArea");
-export let currentUID = null; 
-export let currentRole = null;  
-let activeUnsubscribe = null;
-setTimeout(() => {
-  const modals = ["assignTaskModal", "studentTaskModal", "mentorDetailPanel"];
+
+const auth = getAuth(app); export const db = getFirestore(app);
+const storage = getStorage(app); const sidebar = document.getElementById("sidebar");
+export const contentArea = document.getElementById("contentArea"); export let currentUID = null; 
+export let currentRole = null;  let activeUnsubscribe = null;
+setTimeout(() => {const modals = ["assignTaskModal", "studentTaskModal", "mentorDetailPanel"];
   modals.forEach(id => {const el = document.getElementById(id);
     if(el) { el.style.display = "none"; el.classList.add("hidden"); }});}, 100);
 function clearListener() {if (activeUnsubscribe) { activeUnsubscribe(); activeUnsubscribe = null; }}
@@ -57,28 +41,22 @@ function renderSidebar(role) {
       HamaraLabs <span style="font-size: 1.4rem;">🏠</span></div>`;
   let menuStructure = []; 
   const safeRole = role.toLowerCase();
-  
   if (safeRole === "mentor") {
-    menuStructure = [
-      { category: "Overview", items: ["Feature in Progress..."] },
-      { category: "My Hub", items: [ "students","studentReg", "studentList",] },
-      { category: "AI Feature", items: ["tinkerLab"] },
-      { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },
-    ];
-  } else if (safeRole === "student") {
-    menuStructure = [
+    menuStructure = [{ category: "Overview", items: ["Feature in Progress..."] },
+       { category: "My Hub", items: [ "students","studentReg", "studentList",] },
+       { category: "AI Feature", items: ["tinkerLab"] },
+       { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },];}
+     else if (safeRole === "student") {
+      menuStructure = [
       { category: "Overview", items: ["Feature in Progress..."] },
       { category: "My Workspace", items: ["myTasks"] },
-      {category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkeringActivities", "tinkering activity report"]}
-    ];
-  }
-  else if (safeRole === "atl-incharge") {
+      {category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkeringActivities", "tinkering activity report"]}];}
+  if (safeRole === "atl-incharge" || safeRole === "school-admin") {
     menuStructure = [
       { category: "Lab Ops", items: ["overview"] },
       { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },
-      {category: "Students", items:["Student Snapshot","studentReg", "studentList"]}
-    ];
-  } 
+      {category: "Students", items:["Student Snapshot","studentReg", "studentList"]},];}
+
   else if (safeRole === "admin") { 
     menuStructure = [
       { category: "Home", items: ["overview"] },
@@ -120,19 +98,41 @@ async function loadSection(section) {
   if (section === "studentReg") { import('./adminFxn.js').then(module => module.loadStudentRegistration(db, contentArea))
         .catch(error => { console.error("Error:", error); contentArea.innerHTML = `<div style="text-align:center; padding:40px; color:#FF3B30;">Failed to load.</div>`; });}
   if (section === "tinkeringActivities") {loadStudentTAs(db, currentUID, contentArea);return;}
-  if (currentRole === "atl-incharge" || currentRole === "atl_incharge") { // Checking both just to be perfectly safe!
+  if (currentRole === "atl-incharge" || currentRole === "atl_incharge"|| currentRole ==="school-admin") { // Checking both just to be perfectly safe!
     if (section === "overview") { loadInchargeOverview(db, currentUID, contentArea); return; }
-    if (section === "Student Snapshot") {
-      contentArea.innerHTML = `<div class="loader">Verifying Lab Credentials...</div>`;
-      import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js").then(({ collection, query, where, getDocs }) => {
-        getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)))
-        .then(snap => {if (snap.empty) {contentArea.innerHTML = `<div class="card" style="padding: 40px; text-align: center; color: #ef4444; font-weight: 600;">No school assigned to your profile yet. Please contact Admin.</div>`;
-            return;}
-          const mySchoolId = snap.docs[0].data().schoolId;
-          import('./adminFxn.js')
-            .then(module => module.loadStudentSnapshot(db, contentArea, mySchoolId))
-            .catch(err => console.error("Error loading Snapshot:", err));});});
-      return;}
+if (section === "Student Snapshot") {
+      contentArea.innerHTML = `<div class="loader" style="padding: 40px; text-align: center; color: #8e8e93; font-weight: 600;">Verifying Institutional Credentials... ⏳</div>`;
+      
+      import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js")
+        .then(async ({ doc, getDoc, collection, query, where, getDocs }) => {
+          try {
+            const userSnap = await getDoc(doc(db, "users", currentUID));
+            let mySchoolId = userSnap.exists() ? userSnap.data().schoolId : null;
+            if (!mySchoolId) {
+              const assignSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
+              if (!assignSnap.empty) {
+                mySchoolId = assignSnap.docs[0].data().schoolId;
+              }
+            }
+            if (!mySchoolId) {
+              contentArea.innerHTML = `<div class="card" style="padding: 40px; text-align: center; color: #ff3b30; font-weight: 600;">⚠️ No institution linked to your profile. Please contact Platform Admin.</div>`;
+              return;
+            }
+            import('./adminFxn.js')
+              .then(module => module.loadStudentSnapshot(db, contentArea, mySchoolId))
+              .catch(err => {
+                console.error("Module Import Error:", err);
+                contentArea.innerHTML = `<div style="padding: 40px; text-align: center; color: #ff3b30;">Failed to load the Snapshot Engine.</div>`;
+              });
+
+          } catch (error) {
+            console.error("Credential Verification Failed:", error);
+            contentArea.innerHTML = `<div style="padding: 40px; text-align: center; color: #ff3b30;">System Error verifying credentials.</div>`;
+          }
+        });
+        
+      return;
+    }
 if (section === "Tinkering Activity Form") { loadTAForm(db, currentUID, contentArea);return;}
 if (section === "tinkering activity report") { loadTAReport(db, currentUID, contentArea);return; }
   }

@@ -133,11 +133,7 @@ if (phoneGroup) {
       showFeedback("Login Successful", false);
       setTimeout(() => redirectToDashboard(), 600);
     } catch (error) {
-      showFeedback(error.message);
-    }
-  });
-}
-
+      showFeedback(error.message);}});}
 if (googleBtn) {
   googleBtn.addEventListener("click", async () => {
     const provider = new GoogleAuthProvider();
@@ -147,9 +143,4 @@ if (googleBtn) {
       await createUserDocument(user, selectedRole, {});
       showFeedback("Google Login Successful", false);
       setTimeout(() => redirectToDashboard(), 600);
-    } catch (error) {
-      showFeedback(error.message);
-    }
-  });
-}
-// git test
+    } catch (error) {showFeedback(error.message); }});}
