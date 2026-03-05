@@ -221,7 +221,6 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
           animation: stuFadeUp 0.7s var(--ui-curve); 
         }
 
-        /* The Spring-Loaded Dynamic Heading (Kept your awesome interaction!) */
         .stu-dynamic-heading { position: relative; display: inline-flex; flex-direction: column; height: 1.1em; overflow: hidden; cursor: default; vertical-align: bottom; }
         .stu-heading-layer { font-size: 2.8rem; font-weight: 800; letter-spacing: -1.5px; line-height: 1.1; transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.15), opacity 0.5s ease; }
         .stu-heading-front { color: #1c1c1e; transform: translateY(0); opacity: 1; }
