@@ -77,12 +77,9 @@ export async function dispatchEmailNotification(type, recipientEmail, data) {
       <p>This is an automated reminder that a project in your workspace has passed its due date.</p>
       <div style="background: #fef2f2; padding: 16px; border-radius: 12px; border-left: 4px solid #ef4444; margin: 24px 0;">
         <strong style="color: #991b1b;">Project:</strong> <span style="color: #b91c1c;">${data.taskTitle}</span><br>
-        <strong style="color: #991b1b;">Originally Due:</strong> <span style="color: #b91c1c;">${data.dueDate}</span>
-      </div>
+        <strong style="color: #991b1b;">Originally Due:</strong> <span style="color: #b91c1c;">${data.dueDate}</span></div>
       <p>Please log in and submit your progress as soon as possible.</p>
-      ${footer}`;
-  }
-
+      ${footer}`;}
   else if (type === "TASK_SUBMITTED") {
     subject = `Task Submitted: ${data.studentName} completed a project!`;
     htmlTemplate = `${header}
@@ -90,11 +87,8 @@ export async function dispatchEmailNotification(type, recipientEmail, data) {
       <p><strong>${data.studentName}</strong> has marked a task as 100% complete and submitted their work.</p>
       <div style="background: #f0fdf4; padding: 16px; border-radius: 12px; border: 1px solid #bbf7d0; margin: 24px 0;">
         <strong>Project:</strong> ${data.taskTitle}<br>
-        <strong>Completion Date:</strong> ${new Date().toLocaleDateString()}
-      </div>
-      <p>Please log in to your Mentor dashboard to review their submission.</p>
-      ${footer}`;
-  }
+        <strong>Completion Date:</strong> ${new Date().toLocaleDateString()}</div>
+      <p>Please log in to your Mentor dashboard to review their submission.</p>${footer}`;}
   else if (type === "TASK_REVIEWED") {
     subject = `Mentor Feedback: ${data.taskTitle}`;
     htmlTemplate = `${header}
@@ -102,23 +96,16 @@ export async function dispatchEmailNotification(type, recipientEmail, data) {
       <p>Your Mentor has reviewed your recent project submission.</p>
       <div style="background: #f0f9ff; padding: 16px; border-radius: 12px; border-left: 4px solid #0ea5e9; margin: 24px 0;">
         <strong style="color: #0369a1;">Mentor's Note:</strong><br>
-        <span style="color: #0284c7;">"${data.mentorFeedback || 'Great job! Task approved.'}"</span>
-      </div>
-      <p>Keep up the great work in the lab!</p>
-      ${footer}`;
-  }
-
+        <span style="color: #0284c7;">"${data.mentorFeedback || 'Great job! Task approved.'}"</span></div>
+      <p>Keep up the great work in the lab!</p>${footer}`;} 
   else if (type === "DOUBT_RAISED") {
     subject = `New Question from ${data.studentName}`;
     htmlTemplate = `${header}
       <h3 style="color: #0f172a;">Student Assistance Required</h3>
       <p><strong>${data.studentName}</strong> has raised a doubt regarding the project: <em>${data.taskTitle}</em>.</p>
       <div style="background: #f8fafc; padding: 16px; border-radius: 12px; border-left: 4px solid #f59e0b; margin: 24px 0;">
-        <span style="color: #475569; font-style: italic;">"${data.doubtMessage}"</span>
-      </div>
-      <p>Jump into your dashboard to reply and help them get unblocked.</p>
-      ${footer}`;
-  }
+        <span style="color: #475569; font-style: italic;">"${data.doubtMessage}"</span></div>
+      <p>Jump into your dashboard to reply and help them get unblocked.</p>${footer}`;}
   else if (type === "DOUBT_REPLIED") {
     subject = `Your Mentor Replied to your Doubt!`;
     htmlTemplate = `${header}
@@ -126,11 +113,8 @@ export async function dispatchEmailNotification(type, recipientEmail, data) {
       <p>Your Mentor has responded to your question regarding <em>${data.taskTitle}</em>.</p>
       <div style="background: #f0fdf4; padding: 16px; border-radius: 12px; border-left: 4px solid #22c55e; margin: 24px 0;">
         <strong style="color: #166534;">Mentor says:</strong><br>
-        <span style="color: #15803d;">"${data.mentorReply}"</span>
-      </div>
-      <p>Head back to the dashboard to continue your project!</p>
-      ${footer}`;
-  }
+        <span style="color: #15803d;">"${data.mentorReply}"</span></div>
+      <p>Head back to the dashboard to continue your project!</p>${footer}`;}
   else if (type === "BULK_REGISTER_SUCCESS") {
     subject = "Pipeline Complete: Bulk Roster Imported 📁";
     htmlTemplate = `${header}
@@ -169,94 +153,60 @@ export async function dispatchEmailNotification(type, recipientEmail, data) {
     htmlTemplate = `${header}
       <h3 style="color: #0f172a;">${data.announcementTitle}</h3>
       <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 24px 0; border: 1px solid #cbd5e1;">
-        <p style="color: #334155; margin: 0; line-height: 1.6;">${data.announcementMessage}</p>
-      </div>
+        <p style="color: #334155; margin: 0; line-height: 1.6;">${data.announcementMessage}</p></div>
       <p style="font-size: 0.9rem; color: #64748b;"><em>Message sent by HamaraLabs Administration</em></p>
       ${footer}`;}
   else if (type === "HARDWARE_KIT_ASSIGNED") {
-    subject = "⚙️ Hardware Kit Issued to You";
-    htmlTemplate = `${header}
+    subject = "⚙️ Hardware Kit Issued to You"; htmlTemplate = `${header}
       <h3 style="color: #0f172a;">Hardware Checkout: ${data.studentName}</h3>
       <p>A physical hardware kit has been assigned to you for your upcoming ATL projects.</p>
       <div style="background: #fffbeb; padding: 16px; border-radius: 12px; border-left: 4px solid #f59e0b; margin: 24px 0;">
         <strong>Equipment:</strong> ${data.equipmentName} <br>
         <strong>Checkout Date:</strong> ${data.checkoutDate}<br>
-        <strong>Expected Return:</strong> ${data.returnDate}
-      </div>
+        <strong>Expected Return:</strong> ${data.returnDate}</div>
       <p>Please handle the components with care and reach out to your mentor if you need help with wiring or firmware!</p>
-      ${footer}`;
-  }
-  try {
-    const response = await fetch('https://hamaralabs.vercel.app/api/sendMail', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: recipientEmail, subject, htmlTemplate })
-    });
+      ${footer}`;}
+  try {const response = await fetch('https://hamaralabs.vercel.app/api/sendMail', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: recipientEmail, subject, htmlTemplate })});
     if (!response.ok) throw new Error("Backend rejected email request.");
-    console.log(`Email dispatched successfully: [${type}] -> ${recipientEmail}`);
-  } catch (error) {
-    console.error(`Failed to dispatch email [${type}]:`, error);
-  }
-}
+    console.log(`Email dispatched successfully: [${type}] -> ${recipientEmail}`);} catch (error) {console.error(`Failed to dispatch email [${type}]:`, error);}}
 //studentttttttttttttttt
 import { collection, query, where, getDocs, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 export async function loadStudentTAs(db, currentUID, contentArea) {
   contentArea.innerHTML = `<div class="loader">Loading...</div>`;
-  try {
-    const q = query(collection(db, "tinkering_activities"), where("assignedTo", "==", currentUID));
+  try {const q = query(collection(db, "tinkering_activities"), where("assignedTo", "==", currentUID));
     const snap = await getDocs(q);
-    const studentCss = `
-      <style>
-        :root {
-          --ui-curve: cubic-bezier(0.2, 0.9, 0.2, 1); /* Samsung/Apple Fluid Easing */
+    const studentCss = `<style>:root {--ui-curve: cubic-bezier(0.2, 0.9, 0.2, 1); /* Samsung/Apple Fluid Easing */
           --glass-surface: rgba(255, 255, 255, 0.75);
           --glass-border: rgba(255, 255, 255, 0.9);
           --ambient-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.06);
-          --accent-glow: 0 32px 64px -16px rgba(0, 122, 255, 0.2);
-        }
-
+          --accent-glow: 0 32px 64px -16px rgba(0, 122, 255, 0.2);}
         .stu-wrapper { 
           font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; 
           max-width: 1160px; margin: 0 auto; padding: 40px 20px 80px 20px; 
-          animation: stuFadeUp 0.7s var(--ui-curve); 
-        }
-
+          animation: stuFadeUp 0.7s var(--ui-curve); }
         .stu-dynamic-heading { position: relative; display: inline-flex; flex-direction: column; height: 1.1em; overflow: hidden; cursor: default; vertical-align: bottom; }
         .stu-heading-layer { font-size: 2.8rem; font-weight: 800; letter-spacing: -1.5px; line-height: 1.1; transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.15), opacity 0.5s ease; }
         .stu-heading-front { color: #1c1c1e; transform: translateY(0); opacity: 1; }
         .stu-heading-back { position: absolute; top: 0; left: 0; width: 100%; transform: translateY(100%); opacity: 0; background: linear-gradient(135deg, #007aff, #8a2be2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .stu-dynamic-heading:hover .stu-heading-front { transform: translateY(-100%); opacity: 0; }
         .stu-dynamic-heading:hover .stu-heading-back { transform: translateY(0); opacity: 1; }
-        
         .stu-subtitle { font-size: 1.15rem; color: #8e8e93; font-weight: 500; margin-top: 8px; margin-bottom: 40px; letter-spacing: -0.2px;}
-        
         .stu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 32px; }
-        
-        /* 🌌 The Aurora Glass Card */
-        .stu-card { 
-          background: linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.6) 100%); 
+        .stu-card {background: linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.6) 100%); 
           backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%);
           border-radius: 36px; padding: 32px; position: relative; cursor: pointer;
           box-shadow: var(--ambient-shadow), inset 0 2px 4px rgba(255,255,255,0.8);
-          transition: transform 0.5s var(--ui-curve), box-shadow 0.5s var(--ui-curve);
-        }
-        
-        /* The Luminous Gradient Border (Visible on Hover) */
-        .stu-card::before {
-          content: ''; position: absolute; inset: 0; border-radius: 36px; padding: 2px;
+          transition: transform 0.5s var(--ui-curve), box-shadow 0.5s var(--ui-curve);}
+        .stu-card::before {content: ''; position: absolute; inset: 0; border-radius: 36px; padding: 2px;
           background: linear-gradient(135deg, rgba(0,122,255,0.6), rgba(138,43,226,0.2), transparent 60%);
           -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
           -webkit-mask-composite: xor; mask-composite: exclude;
-          opacity: 0; transition: opacity 0.6s var(--ui-curve); z-index: 1; pointer-events: none;
-        }
-
-        .stu-card:hover { 
-          transform: translateY(-8px) scale(1.02); 
-          box-shadow: var(--accent-glow), inset 0 2px 4px rgba(255,255,255,1); 
-        }
+          opacity: 0; transition: opacity 0.6s var(--ui-curve); z-index: 1; pointer-events: none;}
+        .stu-card:hover { transform: translateY(-8px) scale(1.02); 
+          box-shadow: var(--accent-glow), inset 0 2px 4px rgba(255,255,255,1); }
         .stu-card:hover::before { opacity: 1; }
-        
-        /* Glowing Badges */
         .stu-badge { 
           position: absolute; top: 28px; right: 28px; 
           background: rgba(0, 122, 255, 0.08); color: #007aff; 
@@ -309,15 +259,13 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         .stu-section { margin-top: 40px; }
         .stu-section h4 { font-size: 1.15rem; color: #1c1c1e; justify-content: center;  font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;}
         .stu-section h4 span { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: rgba(0,122,255,0.1); color: #007aff; border-radius: 10px; font-size: 1.2rem; }
-        
-        /* Interactive List Items */
+    
         .stu-list { list-style: none; padding: 0; margin: 0; }
         .stu-list li { 
           background: #ffffff; border-radius: 20px; padding: 18px 24px; margin-bottom: 12px; 
           font-size: 1.05rem; color: #3a3a3c; font-weight: 500; border: 1px solid rgba(0,0,0,0.03); 
           display: flex; gap: 16px; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
+          transition: transform 0.2s ease, box-shadow 0.2s ease;}
         .stu-list li:hover { transform: translateX(6px); box-shadow: 0 8px 16px rgba(0,0,0,0.04); border-color: rgba(0,122,255,0.2); }
         .stu-list li::before { content: ''; width: 8px; height: 8px; background: #007aff; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px rgba(0,122,255,0.5); }
         @keyframes stuFadeUp { from { opacity: 0; transform: translateY(30px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -328,85 +276,47 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         <div class="stu-wrapper" style="text-align:center; padding-top: 100px;">
           <div style="font-size: 4rem; margin-bottom: 20px;">🛰️</div>
           <h2 class="stu-header-title">No Active Missions</h2>
-          <p class="stu-subtitle">Your ATL Incharge hasn't assigned any Tinkering Activities to you yet.</p>
-        </div>`;
-      return;
-    }
-
-    // 3. Build the Grid of Mission Cards
-    window.taStudentData = {}; // Store locally for the modal
+          <p class="stu-subtitle">Your ATL Incharge hasn't assigned any Tinkering Activities to you yet.</p></div>`;return;}
+    window.taStudentData = {}; 
     let gridHtml = '';
-
-    snap.forEach(doc => {
-      const data = doc.data();
-      window.taStudentData[doc.id] = data;
-      const status = (data.status || 'assigned').toLowerCase();
+    snap.forEach(doc => {const data = doc.data();
+      window.taStudentData[doc.id] = data; const status = (data.status || 'assigned').toLowerCase();
       const isCompleted = status === 'completed';
-      
-      gridHtml += `
-        <div class="stu-card" onclick="window.openStudentTAModal('${doc.id}')">
+      gridHtml += `<div class="stu-card" onclick="window.openStudentTAModal('${doc.id}')">
           <div class="stu-badge ${isCompleted ? 'stu-badge-completed' : ''}">${isCompleted ? 'Completed' : 'Active'}</div>
           <div class="stu-subject">${data.subject || 'Innovation'}</div>
           <div class="stu-activity-title">${data.activityName || 'Classified Project'}</div>
           <div class="stu-intro">${data.introduction || 'Click to view mission blueprint...'}</div>
-          <button class="stu-btn">View Details <span>↗</span></button>
-        </div>
-      `;
-    });
+          <button class="stu-btn">View Details <span>↗</span></button></div>`;});
 
 window.openStudentTAModal = function(taId) {
       const data = window.taStudentData[taId];
       if (!data) return;
-
       const buildList = (arr, icon) => {
         if (!arr || arr.length === 0) return `<p style="color:#8e8e93; font-style:italic;">None specified.</p>`;
-        return `<ul class="stu-list">${arr.map(item => `<li><span style="display:none;">${icon}</span>${item}</li>`).join('')}</ul>`;
-      };
-
+        return `<ul class="stu-list">${arr.map(item => `<li><span style="display:none;">${icon}</span>${item}</li>`).join('')}</ul>`;};
       const status = data.status || 'assigned';
       let actionAreaHtml = '';
-
-      // State Engine for the bottom action area
-      if (status === 'completed') {
-        actionAreaHtml = `
-          <div style="background: rgba(52, 199, 89, 0.1); border: 1px solid rgba(52, 199, 89, 0.2); border-radius: 24px; padding: 24px; text-align: center;">
-            <div style="font-size: 2rem; margin-bottom: 8px;">🏆</div>
-            <h4 style="color: #28a745; margin: 0 0 8px 0; font-size: 1.2rem;">Mission Accomplished</h4>
-            <p style="color: #28a745; opacity: 0.8; margin: 0; font-weight: 500;">Your ATL Incharge has verified this activity.</p>
-          </div>
-        `;
+      if (status === 'completed') {actionAreaHtml = `<div style="background: rgba(52, 199, 89, 0.1); border: 1px solid rgba(52, 199, 89, 0.2); border-radius: 24px; padding: 24px; text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 8px;">🏆</div><h4 style="color: #28a745; margin: 0 0 8px 0; font-size: 1.2rem;">Mission Accomplished</h4>
+            <p style="color: #28a745; opacity: 0.8; margin: 0; font-weight: 500;">Your ATL Incharge has verified this activity.</p></div>`;
       } else if (status === 'submitted') {
-        actionAreaHtml = `
-          <div style="background: rgba(0, 122, 255, 0.08); border: 1px solid rgba(0, 122, 255, 0.15); border-radius: 24px; padding: 24px; text-align: center;">
+        actionAreaHtml = `<div style="background: rgba(0, 122, 255, 0.08); border: 1px solid rgba(0, 122, 255, 0.15); border-radius: 24px; padding: 24px; text-align: center;">
             <div style="font-size: 2rem; margin-bottom: 8px; animation: atlSpin 2s linear infinite;">⏳</div>
             <h4 style="color: #007aff; margin: 0 0 8px 0; font-size: 1.2rem;">Under Review</h4>
-            <p style="color: #007aff; opacity: 0.8; margin: 0; font-weight: 500;">Awaiting verification from Lab Command.</p>
-          </div>
-        `;
-      } else {
-        actionAreaHtml = `
-          <div id="stu-submit-trigger-${taId}">
+            <p style="color: #007aff; opacity: 0.8; margin: 0; font-weight: 500;">Awaiting verification from Lab Command.</p></div>`;
+      } else {actionAreaHtml = `<div id="stu-submit-trigger-${taId}">
             <button onclick="document.getElementById('stu-submit-trigger-${taId}').style.display='none'; document.getElementById('stu-submit-form-${taId}').style.display='block';" 
                     style="background: linear-gradient(135deg, #007aff, #005bb5); color: #fff; border: none; border-radius: 100px; padding: 20px 60px; font-size: 1.15rem; font-weight: 800; cursor: pointer; box-shadow: 0 20px 40px rgba(0, 122, 255, 0.3); transition: transform 0.3s ease; width: 100%;">
-              Log Mission Results 🚀
-            </button>
-          </div>
-          
+              Log Mission Results 🚀</button></div>
           <div id="stu-submit-form-${taId}" style="display: none; background: #f9f9fb; border-radius: 28px; padding: 32px; border: 1px solid rgba(0,0,0,0.05); animation: stuFadeUp 0.4s ease;">
             <h4 style="font-size: 1.2rem; color: #1c1c1e; margin: 0 0 16px 0; font-weight: 800;">Upload Telemetry</h4>
-            
             <label style="display:block; font-size: 0.9rem; font-weight: 700; color: #8e8e93; margin-bottom: 8px;">Project Evidence (Drive/Video Link)</label>
             <input type="url" id="ta-stu-link-${taId}" placeholder="https://..." style="width: 100%; box-sizing: border-box; background: #fff; border: 2px solid transparent; border-radius: 16px; padding: 16px; font-size: 1rem; color: #1c1c1e; outline: none; transition: 0.3s; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onfocus="this.style.borderColor='#007aff'">
-            
             <label style="display:block; font-size: 0.9rem; font-weight: 700; color: #8e8e93; margin-bottom: 8px;">Field Notes & Observations</label>
             <textarea id="ta-stu-notes-${taId}" placeholder="What did you learn? Did you face any issues?" style="width: 100%; box-sizing: border-box; background: #fff; border: 2px solid transparent; border-radius: 16px; padding: 16px; font-size: 1rem; color: #1c1c1e; outline: none; transition: 0.3s; margin-bottom: 24px; min-height: 100px; resize: vertical; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onfocus="this.style.borderColor='#007aff'"></textarea>
-            
             <button onclick="window.submitTAMission('${taId}')" id="btn-submit-${taId}" style="background: #0099ff; color: #fff; border: none; border-radius: 100px; padding: 18px; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(52, 140, 199, 0.3); width: 100%; transition: 0.2s;">
-              Upload 📡
-            </button>
-          </div>
-        `;
-      }
+              Upload 📡</button></div>`;}
 
       document.getElementById('stuModalContent').innerHTML = `
         <div class="stu-modal-content-scroll">
@@ -419,22 +329,15 @@ window.openStudentTAModal = function(taId) {
           </div>
           <div class="stu-modal-body">
             <div class="stu-section" style="margin-top: 24px;">
-              <p style="font-size: 1.15rem; line-height: 1.7; color: #3a3a3c; font-weight: 500;">${data.introduction || ''}</p>
-            </div>
-            
+              <p style="font-size: 1.15rem; line-height: 1.7; color: #3a3a3c; font-weight: 500;">${data.introduction || ''}</p></div>
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px;">
               <div class="stu-section"><h4><span>📦</span> Required Hardware</h4>${buildList(data.materials, '')}</div>
-              <div class="stu-section"><h4><span>🎯</span> Mission Goals</h4>${buildList(data.goals, '')}</div>
-            </div>
-
+              <div class="stu-section"><h4><span>🎯</span> Mission Goals</h4>${buildList(data.goals, '')}</div></div>
             <div class="stu-section"><h4><span>🚀</span> Execution Steps</h4>${buildList(data.instructions, '')}</div>
-
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px;">
               <div class="stu-section"><h4><span>⚠️</span> Safety & Tips</h4>${buildList(data.tips, '')}</div>
-              <div class="stu-section"><h4><span>📊</span> Expected Observations</h4>${buildList(data.observations, '')}</div>
-            </div>
+              <div class="stu-section"><h4><span>📊</span> Expected Observations</h4>${buildList(data.observations, '')}</div></div>
         <div class="stu-section" style="margin-top: 60px;">${actionAreaHtml}</div></div></div>`;
-      
       const overlay = document.getElementById('stuModalOverlay');
       overlay.style.display = 'flex';
       requestAnimationFrame(() => overlay.classList.add('active'));};
