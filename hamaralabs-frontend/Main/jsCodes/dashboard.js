@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, getDoc, collection, getDocs, query, where, addDoc, onSnapshot, serverTimestamp, arrayUnion, updateDoc, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, collection, getDocs, query, where, addDoc, onSnapshot, serverTimestamp, arrayUnion, updateDoc, orderBy, persistentLocalCache, persistentMultipleTabManager,} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check.js";
@@ -17,8 +17,8 @@ const firebaseConfig = {
   measurementId: "G-G0SYKW59P6"
 }; 
 const app = initializeApp(firebaseConfig);
-
-const auth = getAuth(app); export const db = getFirestore(app);
+const auth = getAuth(app); export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })});
 const storage = getStorage(app); const sidebar = document.getElementById("sidebar");
 export const contentArea = document.getElementById("contentArea"); export let currentUID = null; 
 export let currentRole = null;  let activeUnsubscribe = null;
@@ -60,7 +60,7 @@ function renderSidebar(role) {
     menuStructure = [
       { category: "Command Center", items: ["overview", "team operations"] },
       { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },
-      { category: "Personnel & Telemetry", items: ["Student Snapshot", "mentors", "studentReg", "studentList"] }
+      { category: "Personnel & Telemetry", items: ["studentSnapshot", "studentReg", "studentList"] }
     ];
   } 
   else if (safeRole === "admin") { 
@@ -68,31 +68,26 @@ function renderSidebar(role) {
       { category: "Home", items: ["overview"] },
       { category: "Approvals", items: ["users"] },
       { category: "Schools", items: ["schools", "Register School"] },
-      { category: "Users & Telemetry", items: ["Student Snapshot", "team operations", "studentReg", "studentList"] },
-      { category: "Operations", items: ["Feature in Progress"] },
-      { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },
-      { category: "System", items: ["Feature in Progress"] }
-    ];
-  }
+      { category: "Users & Telemetry", items: ["studentSnapshot",  "studentReg", "studentList", "team operations"] },
+      { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },];}
 
-  // Ultra-Premium Display Names Mapping
   const displayNames = {
-    "overview": "Overview 📊", 
+    "overview": "Overview", 
     "analytics": "Analytics", 
     "schools": "School Report", 
     "Register School": "Register School", 
     "users": "Platform Users", 
     "studentReg": "Student Registration", 
-    "tasks": "Global Tasks", 
+    "tasks": "Tasks", 
     "announcements": "Announcements", 
     "settings": "Settings", 
     "students": "My Students", 
     "assignedTeams": "Assigned Schools", 
     "sessions": "Live Sessions", 
-    "tinkerLab": "AI Activity Lab 💡", 
+    "tinkerLab": "AI Activity Lab ", 
     "myTasks": "My Tasks", 
     "studentList": "Student Data", 
-    "Student Snapshot": "Student Snapshot 🎯", 
+    "Student Snapshot": "Student Snapshot ", 
     "studentSnapshot": "Student Snapshot", // Fallback
     "tinkeringActivities": "Assigned TAs",
     
@@ -100,7 +95,7 @@ function renderSidebar(role) {
     "Tinkering Activity Form": "TA form",
     "tinkering activity report": "TA report",
     "team operations": "Tasks",
-    "mentors": "..",
+   
     
     // Placeholders
     "Feature in Progress...": "Coming Soon ⏳",
@@ -136,40 +131,47 @@ async function loadSection(section) {
   if (section === "tinkeringActivities") {loadStudentTAs(db, currentUID, contentArea);return;}
   if (currentRole === "atl-incharge" || currentRole === "atl_incharge"|| currentRole ==="school-admin") { // Checking both just to be perfectly safe!
     if (section === "overview") { loadInchargeOverview(db, currentUID, contentArea); return; }
-if (section === "Student Snapshot") {
-      contentArea.innerHTML = `<div class="loader" style="padding: 40px; text-align: center; color: #8e8e93; font-weight: 600;">Verifying Institutional Credentials... ⏳</div>`;
+if (section === "studentSnapshot") {
+      console.log("👉 ROUTER TRIGGERED FOR SNAPSHOT"); // It will print this now!
+      contentArea.innerHTML = `<div style="padding: 40px; text-align: center; color: #8e8e93; font-weight: 600;">Router: Initializing Snapshot Sequence... ⏳</div>`;
       
-      import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js")
-        .then(async ({ doc, getDoc, collection, query, where, getDocs }) => {
-          try {
-            const userSnap = await getDoc(doc(db, "users", currentUID));
-            let mySchoolId = userSnap.exists() ? userSnap.data().schoolId : null;
-            if (!mySchoolId) {
-              const assignSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
-              if (!assignSnap.empty) {
-                mySchoolId = assignSnap.docs[0].data().schoolId;
-              }
-            }
-            if (!mySchoolId) {
-              contentArea.innerHTML = `<div class="card" style="padding: 40px; text-align: center; color: #ff3b30; font-weight: 600;">⚠️ No institution linked to your profile. Please contact Platform Admin.</div>`;
-              return;
-            }
+      import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js").then(async ({ doc, getDoc, collection, query, where, getDocs }) => {
+        try {
+          const userSnap = await getDoc(doc(db, "users", currentUID));
+          const userData = userSnap.exists() ? userSnap.data() : {};
+          const role = (userData.role || "").toLowerCase(); 
+          
+          // 👑 1. ADMIN BYPASS
+          if (role === "admin" || role === "platform-admin" || role === "super-admin") {
             import('./adminFxn.js')
-              .then(module => module.loadStudentSnapshot(db, contentArea, mySchoolId))
-              .catch(err => {
-                console.error("Module Import Error:", err);
-                contentArea.innerHTML = `<div style="padding: 40px; text-align: center; color: #ff3b30;">Failed to load the Snapshot Engine.</div>`;
-              });
-
-          } catch (error) {
-            console.error("Credential Verification Failed:", error);
-            contentArea.innerHTML = `<div style="padding: 40px; text-align: center; color: #ff3b30;">System Error verifying credentials.</div>`;
+              .then(module => module.loadStudentSnapshot(db, contentArea, null))
+              .catch(err => contentArea.innerHTML = `Import Error: ${err.message}`);
+            return;
           }
-        });
-        
+
+          // 🧑‍🏫 2. STAFF ROUTING
+          let mySchoolId = userData.schoolId;
+          if (!mySchoolId) {
+            const assignSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
+            if (!assignSnap.empty) mySchoolId = assignSnap.docs[0].data().schoolId;
+          }
+
+          if (!mySchoolId) {
+            contentArea.innerHTML = `<div style="padding: 40px; text-align: center; color: #ef4444; font-weight: 600;">⚠️ No school assigned to your profile.</div>`;
+            return;
+          }
+
+          // 🚀 4. DEPLOY STAFF VIEW
+          import('./adminFxn.js')
+            .then(module => module.loadStudentSnapshot(db, contentArea, mySchoolId))
+            .catch(err => contentArea.innerHTML = `Import Error: ${err.message}`);
+
+        } catch (err) {
+          contentArea.innerHTML = `Database Error: ${err.message}`;
+        }
+      });
       return;
-    }
-if (section === "Tinkering Activity Form") { loadTAForm(db, currentUID, contentArea);return;}
+    }if (section === "Tinkering Activity Form") { loadTAForm(db, currentUID, contentArea);return;}
 if (section === "tinkering activity report") { loadTAReport(db, currentUID, contentArea);return; }
   }
   if (currentRole && currentRole.toLowerCase() === "admin") {

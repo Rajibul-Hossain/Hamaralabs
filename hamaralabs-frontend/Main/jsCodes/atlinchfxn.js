@@ -1,7 +1,7 @@
-import { collection, query, where, getDocs, getDoc, doc, addDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-// ============================================================================
-// ⚙️ ATL INCHARGE: ONE-UI / IOS COMMAND CENTER (MACOS PHYSICS EDITION)
-// ============================================================================
+import { collection, query, where, getDocs, getDoc, doc, addDoc, serverTimestamp, updateDoc, persistentLocalCache, persistentMultipleTabManager, } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { withHyperCache } from "./dataEngine.js";
+// THE GLOBAL DATABASE CACHE
+
 export async function loadInchargeOverview(db, currentUID, contentArea) {
   contentArea.innerHTML = `
     <div style="display:flex; justify-content:center; align-items:center; height: 60vh; flex-direction:column; gap: 16px;">
@@ -475,11 +475,37 @@ export async function loadTAForm(db, currentUID, contentArea) {
 // ============================================================================
 // 📊 TA REPORTS: MISSION HUB (LIBRARY + ACTIVE OPERATIONS)
 // ============================================================================
+// ============================================================================
+// 📊 TA REPORTS: MISSION HUB (INSTANT SWR CACHE + EXACT MOUSE ORIGIN)
+// ============================================================================
 export async function loadTAReport(db, currentUID, contentArea) {
-  contentArea.innerHTML = `<div class="loader" style="text-align:center; padding:50px; color:#8e8e93; font-weight:600;">Loading Tinkering Activities... <span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span></div><style>@keyframes spin { 100% { transform:rotate(360deg); } }</style>`;
+  const container = contentArea || document.getElementById("dashboardContent");
+  if (!container) return;
+
+  // ⚡ 1. SWR: INSTANT LOCAL STORAGE RESTORE
+  const cacheKey = `ta_hub_persist_${currentUID}`;
+  const savedData = localStorage.getItem(cacheKey);
   
+  if (savedData && !window.forceTAHubRefresh) {
+    try {
+      const parsed = JSON.parse(savedData);
+      window.taHubData = parsed.taData; 
+      container.innerHTML = parsed.html;
+      
+      const header = container.querySelector('.hub-wrapper h1');
+      if (header && !header.innerHTML.includes('Live Sync')) {
+        header.innerHTML += `<span style="font-size:0.8rem; color:#007aff; background:rgba(0,122,255,0.1); padding:4px 10px; border-radius:10px; margin-left:16px; vertical-align:middle; display:inline-flex; align-items:center; gap:6px; letter-spacing:0; font-weight:700;"><span style="width:6px; height:6px; background:#007aff; border-radius:50%; animation:pulse 1s infinite;"></span>Live Sync</span><style>@keyframes pulse { 0% {opacity:1;} 50% {opacity:0.3;} 100% {opacity:1;} }</style>`;
+      }
+    } catch(e) { console.error("TA Hub Cache corrupted, fetching fresh."); }
+  } else {
+    container.innerHTML = `<div class="loader" style="text-align:center; padding:50px; color:#8e8e93; font-weight:600;">Loading Tinkering Activities... <span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span></div><style>@keyframes spin { 100% { transform:rotate(360deg); } }</style>`;
+  }
+
+  window.forceTAHubRefresh = false;
+
   try {
-    // 1. 🔐 SECURE ROLE & SCHOOL RETRIEVAL
+    const { collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+
     const userDocSnap = await getDoc(doc(db, "users", currentUID));
     if (!userDocSnap.exists()) return;
     const userData = userDocSnap.data();
@@ -492,11 +518,11 @@ export async function loadTAReport(db, currentUID, contentArea) {
     }
 
     if (!schoolId) {
-      contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No school assigned.</div>`;
+      container.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No school assigned.</div>`;
       return;
     }
 
-    // 2. 🔍 CONTEXTUAL QUERIES (Students see only theirs; Staff see all)
+    // 📡 2. SILENT BACKGROUND FETCH
     let taQuery = userRole === "student" 
       ? query(collection(db, "tinkering_activities"), where("schoolId", "==", schoolId), where("assignedTo", "==", currentUID))
       : query(collection(db, "tinkering_activities"), where("schoolId", "==", schoolId));
@@ -506,7 +532,6 @@ export async function loadTAReport(db, currentUID, contentArea) {
       getDocs(query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", schoolId)))
     ]);
     
-    // Process Students
     let studentMap = {};
     let studentDropdownOptions = `<option value="">-- Select a Student --</option>`;
     studentsSnap.forEach(doc => { 
@@ -516,20 +541,19 @@ export async function loadTAReport(db, currentUID, contentArea) {
 
     let libraryHtml = '';
     let operationsHtml = '';
-    let domains = new Set(); // For dynamic filtering
-    window.taHubData = {};
+    let domains = new Set();
+    const freshTaHubData = {};
 
-    // Process Tinkering Activities
     taSnap.forEach(docSnap => {
       const data = docSnap.data();
       const taId = docSnap.id;
-      window.taHubData[taId] = data;
+      freshTaHubData[taId] = data;
       
       const status = (data.status || 'assigned').toLowerCase();
       const safeSubject = data.subject || 'General';
-      domains.add(safeSubject); // Collect unique domains
+      domains.add(safeSubject);
 
-      // IF IT IS A LIBRARY ACTIVITY (Staff Only)
+      // 🚨 FIX RESTORED: Passing 'event' instead of 'this'
       if (status === 'library' || data.assignedTo === 'unassigned') {
         libraryHtml += `
           <div class="hub-card library-item" data-search="${(data.activityName+safeSubject+data.topic).toLowerCase()}" data-subject="${safeSubject}" onclick="window.openHubPanel(event, '${taId}')">
@@ -539,9 +563,7 @@ export async function loadTAReport(db, currentUID, contentArea) {
             </div>
             <div style="background: rgba(0,122,255,0.1); color: #007aff; padding: 8px 16px; border-radius: 12px; font-weight: 700; font-size: 0.85rem;">View & Assign ↗</div>
           </div>`;
-      } 
-      // IF IT IS AN ACTIVE INSTANCE
-      else {
+      } else {
         const assignedName = studentMap[data.assignedTo] || "Unknown";
         let badgeStyle = "background:rgba(142,142,147,0.1); color:#8e8e93;"; 
         if (status === 'submitted') badgeStyle = "background:rgba(255,149,0,0.1); color:#ff9500;"; 
@@ -558,35 +580,30 @@ export async function loadTAReport(db, currentUID, contentArea) {
       }
     });
 
+    window.taHubData = freshTaHubData;
+
     if (!libraryHtml) libraryHtml = `<div class="hub-empty">No Tinkering Activities in the library. Use the Activity Architect to create some!</div>`;
     if (!operationsHtml) operationsHtml = `<div class="hub-empty">No active TAs deployed yet.</div>`;
 
-    // Generate Domain Filter Dropdown
     let domainFilterOptions = `<option value="all">All Domains</option>`;
-    domains.forEach(domain => {
-      domainFilterOptions += `<option value="${domain}">${domain}</option>`;
-    });
+    domains.forEach(domain => { domainFilterOptions += `<option value="${domain}">${domain}</option>`; });
 
-    // 🚀 LIVE SEARCH & DOMAIN FILTER ENGINE
     window.filterHub = function() {
       const q = document.getElementById('hubSearchInput').value.toLowerCase();
       const domainFilter = document.getElementById('hubDomainFilter').value;
-
       const applyFilter = (el) => {
         const matchesSearch = el.dataset.search.includes(q);
         const matchesDomain = (domainFilter === 'all' || el.dataset.subject === domainFilter);
         el.style.display = (matchesSearch && matchesDomain) ? 'flex' : 'none';
       };
-
       document.querySelectorAll('.library-item').forEach(applyFilter);
       document.querySelectorAll('.ops-item').forEach(applyFilter);
     };
 
-    // 3. 🎨 UI RENDER
-    contentArea.innerHTML = `
+    // 🎨 3. BUILD FINAL HTML & SAVE TO CACHE
+    const finalHtmlPayload = `
       <style>
         .hub-wrapper { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; max-width: 1040px; margin: 0 auto; padding: 40px 10px; animation: hubFadeIn 0.5s ease; }
-        
         .hub-controls { display: flex; gap: 16px; margin-bottom: 40px; }
         @media(max-width: 768px) { .hub-controls { flex-direction: column; } }
         
@@ -600,50 +617,57 @@ export async function loadTAReport(db, currentUID, contentArea) {
         .hub-card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 12px 24px rgba(0,0,0,0.06); border-color: rgba(0,122,255,0.2); }
         .hub-empty { text-align: center; padding: 40px; background: rgba(0,0,0,0.02); border-radius: 20px; color: #8e8e93; font-weight: 500; font-style: italic; }
         
-        /* 🍎 MACOS SPATIAL SCALE ANIMATION */
         .hub-mac-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0); backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); z-index: 9999; display: none; justify-content: center; align-items: center; transition: background 0.4s ease, backdrop-filter 0.4s ease; }
         .hub-mac-overlay.active { background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
         
         .hub-mac-modal { 
           background: rgba(255,255,255,0.98); backdrop-filter: blur(40px);
-          width: 92%; max-width: 600px; max-height: 85vh; border-radius: 100px; 
+          width: 92%; max-width: 600px; max-height: 85vh; 
           box-shadow: 0 40px 80px rgba(0,0,0,0.25), inset 0 2px 4px rgba(255,255,255,1); 
           border: 1px solid rgba(255,255,255,0.8);
           display: flex; flex-direction: column; overflow: hidden;
-          opacity: 0; transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0.05); 
-          transition: transform 0.55s cubic-bezier(0.32, 0.08, 0.24, 1), opacity 0.4s ease, border-radius 0.5s cubic-bezier(0.32, 0.08, 0.24, 1);
+          transform-origin: center center; 
+          opacity: 0; border-radius: 60px;
+          transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0.01); 
+          transition: transform 0.5s cubic-bezier(0.32, 0.08, 0.24, 1), opacity 0.3s ease, border-radius 0.5s cubic-bezier(0.32, 0.08, 0.24, 1);
         }
-        .hub-mac-overlay.active .hub-mac-modal { transform: translate(0px, 0px) scale(1); opacity: 1; border-radius: 28px; }
         
+        .hub-mac-overlay.active .hub-mac-modal { transform: translate(0px, 0px) scale(1); opacity: 1; border-radius: 28px; }
         .hub-modal-body { flex: 1; overflow-y: auto; padding: 32px; scrollbar-width: none; }
         .hub-modal-body::-webkit-scrollbar { display: none; }
-
         @keyframes hubFadeIn { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
       </style>
       
       <div class="hub-wrapper">
-        <h1 style="font-size: 2.8rem; font-weight: 800; margin: 0 0 10px 0; color: #1c1c1e; letter-spacing: -1px;">Tinkering Hub</h1>
+        <h1 style="font-size: 2.8rem; font-weight: 800; margin: 0 0 10px 0; color: #1c1c1e; letter-spacing: -1px; display:flex; align-items:center;">Mission Hub</h1>
         <p style="font-size: 1.15rem; color: #8e8e93; margin-bottom: 32px; font-weight: 500;">Manage Tinkering Activities, track telemetry, and deploy tasks.</p>
         
         <div class="hub-controls">
           <input type="text" id="hubSearchInput" class="hub-search" placeholder="Search activities, subjects, or innovators..." onkeyup="window.filterHub()">
           <select id="hubDomainFilter" class="hub-filter" onchange="window.filterHub()">
             ${domainFilterOptions}
-      </select> </div>
+          </select>
+        </div>
         
-        ${userRole !== 'student' ? `
-          <h3 style="font-size: 1.3rem; color: #1c1c1e; margin-bottom: 20px;">Tinkering Activities Library 📘</h3>
-          ${libraryHtml}
-          <div style="height: 40px;"></div>
-        ` : ''}
-        
+        ${userRole !== 'student' ? `<h3 style="font-size: 1.3rem; color: #1c1c1e; margin-bottom: 20px;">Tinkering Activities Library 📘</h3>${libraryHtml}<div style="height: 40px;"></div>` : ''}
+        <h3 style="font-size: 1.3rem; color: #1c1c1e; margin-bottom: 20px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 24px;">Live Operations 📡</h3>
+        ${operationsHtml}
       </div>
 
       <div id="hubOverlay" class="hub-mac-overlay" onclick="if(event.target===this) window.closeHubPanel()">
         <div class="hub-mac-modal" id="hubPanelContainer"></div>
       </div>`;
 
-    // 🍎 4. MACOS SPATIAL LOGIC
+    container.innerHTML = finalHtmlPayload;
+    
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({
+        taData: window.taHubData,
+        html: finalHtmlPayload
+      }));
+    } catch(e) { console.warn("Local storage full, skipping cache."); }
+
+    // 🍎 EXACT MOUSE ORIGIN MATH RESTORED
     window.openHubPanel = function(event, taId) {
       const data = window.taHubData[taId];
       if (!data) return;
@@ -651,29 +675,26 @@ export async function loadTAReport(db, currentUID, contentArea) {
       const overlay = document.getElementById('hubOverlay');
       const modal = document.getElementById('hubPanelContainer');
 
-      // GEOMETRY CALCULATION: Erupt from clicked card
-      if (event && event.currentTarget) {
-        const rect = event.currentTarget.getBoundingClientRect();
-        const startX = rect.left + (rect.width / 2);
-        const startY = rect.top + (rect.height / 2);
-        const centerX = window.innerWidth / 2;
-        const centerY = window.innerHeight / 2;
+      // Grab the exact X/Y pixel of the mouse click
+      if (event) {
+        const clickX = event.clientX || (window.innerWidth / 2);
+        const clickY = event.clientY || (window.innerHeight / 2);
+        const windowCenterX = window.innerWidth / 2;
+        const windowCenterY = window.innerHeight / 2;
         
-        modal.style.setProperty('--tx', `${startX - centerX}px`);
-        modal.style.setProperty('--ty', `${startY - centerY}px`);
+        modal.style.setProperty('--tx', `${clickX - windowCenterX}px`);
+        modal.style.setProperty('--ty', `${clickY - windowCenterY}px`);
       }
 
       const status = (data.status || 'assigned').toLowerCase();
       let mainContent = '';
 
-      // UI: LIBRARY ACTIVITY
       if (status === 'library' && userRole !== 'student') {
         mainContent = `
           <div style="background: #f8f9fa; padding: 20px; border-radius: 16px; margin-bottom: 32px; border: 1px solid rgba(0,0,0,0.03);">
             <div style="color: #8e8e93; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 8px;">Executive Summary</div>
             <div style="font-size: 1.05rem; color: #3a3a3c; line-height: 1.6; font-weight:500;">${data.introduction || "No summary provided."}</div>
           </div>
-          
           <h4 style="margin: 0 0 12px 0; color: #1c1c1e; font-size: 1.1rem;">Deploy this Activity</h4>
           <select id="assign-student-select" style="width: 100%; padding: 18px; border-radius: 16px; border: 1px solid rgba(0,0,0,0.1); background: #f2f2f7; font-size: 1.05rem; font-weight: 500; margin-bottom: 24px; outline: none; transition: 0.3s;" onfocus="this.style.background='#fff'; this.style.borderColor='#007aff'">
             ${studentDropdownOptions}
@@ -681,9 +702,7 @@ export async function loadTAReport(db, currentUID, contentArea) {
           <button id="btn-deploy-${taId}" onclick="window.deployClone('${taId}')" style="background: linear-gradient(135deg, #007aff, #005bb5); color: #fff; border: none; border-radius: 16px; padding: 20px; width: 100%; font-size: 1.15rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(0,122,255,0.25); transition: transform 0.2s;" onactive="this.style.transform='scale(0.96)'">
             Assign to Innovator 🚀
           </button>`;
-      } 
-      // UI: ACTIVE INSTANCE
-      else {
+      } else {
         const linkHtml = data.submissionURL ? `<a href="${data.submissionURL}" target="_blank" style="display:flex; justify-content:center; align-items:center; gap:8px; background:linear-gradient(135deg, #f2f2f7, #e5e5ea); color:#007aff; padding: 18px; border-radius: 16px; font-weight: 800; text-decoration: none; margin-bottom: 24px; transition: 0.2s;" onmouseover="this.style.background='#fff'; this.style.boxShadow='0 4px 12px rgba(0,122,255,0.1)'">🔗 Open Evidence Link</a>` : '';
         const notesHtml = data.studentNotes ? `<div style="background: #fff8e6; border-left: 4px solid #f59e0b; padding: 24px; border-radius: 0 16px 16px 0; color: #3a3a3c; font-style: italic; margin-bottom: 32px; font-size:1.05rem; line-height:1.6;">"${data.studentNotes}"</div>` : '';
         
@@ -696,7 +715,6 @@ export async function loadTAReport(db, currentUID, contentArea) {
               <button onclick="window.updateStatus('${taId}', 'assigned')" style="background: rgba(255, 59, 48, 0.1); color: #ff3b30; border: none; border-radius: 16px; padding: 18px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(255, 59, 48, 0.15)'" onmouseout="this.style.background='rgba(255, 59, 48, 0.1)'">Request Revisions ↩️</button>
             </div>`;
         }
-
         mainContent = `
           <div style="display:flex; align-items:center; gap:10px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(0,0,0,0.05);">
             <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(0,122,255,0.1); color: #007aff; display:flex; justify-content:center; align-items:center; font-weight:800; font-size:1.1rem;">${(studentMap[data.assignedTo]||"U").substring(0,2).toUpperCase()}</div>
@@ -711,75 +729,55 @@ export async function loadTAReport(db, currentUID, contentArea) {
         `;
       }
 
-      // Inject HTML
       modal.innerHTML = `
         <div style="padding: 24px 32px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.95); position: sticky; top: 0; z-index: 10;">
-          <h2 style="margin: 0; font-size: 1.1rem; color: #8e8e93; text-transform: uppercase; letter-spacing: 1px;">${status === 'library' ? 'Activity Menu' : 'Intel Review'}</h2>
+          <h2 style="margin: 0; font-size: 1.1rem; color: #8e8e93; text-transform: uppercase; letter-spacing: 1px;">${status === 'library' ? 'Activity Menu' : ' Review'}</h2>
           <button onclick="window.closeHubPanel()" style="background: #f2f2f7; border: none; width: 36px; height: 36px; border-radius: 18px; font-size: 1.2rem; cursor: pointer; color: #8e8e93; display:flex; justify-content:center; align-items:center; transition:0.2s;" onmouseover="this.style.background='#e5e5ea'">✕</button>
         </div>
         <div class="hub-modal-body">
           <div style="font-size: 0.85rem; color: #007aff; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">${data.subject || 'Domain'}</div>
           <h3 style="font-size: 2.2rem; margin: 0 0 8px 0; letter-spacing: -0.8px; color: #1c1c1e; line-height: 1.1;">${data.activityName}</h3>
-          <div style="color: #8e8e93; font-size: 0.9rem; margin-bottom: 32px; font-family: monospace;">TA-ID: ${data.activityId || taId}</div>
+          <div style="color: #8e8e93; font-size: 0.9rem; margin-bottom: 32px; font-family: monospace;">SYS-ID: ${data.activityId || taId}</div>
           ${mainContent}
         </div>
       `;
       
       overlay.style.display = 'flex';
-      void modal.offsetWidth; // Force CSS repaint to trigger animation
+      void modal.offsetWidth; 
       overlay.classList.add('active');
     };
 
     window.closeHubPanel = function() {
       const overlay = document.getElementById('hubOverlay');
       overlay.classList.remove('active');
-      setTimeout(() => overlay.style.display = 'none', 450); // Wait for CSS transition
+      setTimeout(() => overlay.style.display = 'none', 450); 
     };
 
-    // 🧬 THE CLONING ENGINE
     window.deployClone = async function(templateId) {
       const studentId = document.getElementById('assign-student-select').value;
-      if (!studentId) return alert("Please select a student to deploy to.");
-      
+      if (!studentId) return alert("Please select a student.");
       const btn = document.getElementById(`btn-deploy-${templateId}`);
-      btn.innerHTML = "Cloning Data... <span style='animation:spin 1s linear infinite; display:inline-block;'>⏳</span>"; 
-      btn.disabled = true;
-
+      btn.innerHTML = "Cloning... ⏳"; btn.disabled = true;
       try {
-        const templateData = window.taHubData[templateId];
-        const newInstance = { 
-          ...templateData, 
-          assignedTo: studentId, 
-          status: 'assigned', 
-          deployedAt: serverTimestamp(),
-          parentTemplateId: templateId 
-        };
-        
+        const newInstance = { ...window.taHubData[templateId], assignedTo: studentId, status: 'assigned', deployedAt: serverTimestamp(), parentTemplateId: templateId };
         await addDoc(collection(db, "tinkering_activities"), newInstance);
+        btn.innerHTML = "Assigned! ✅"; btn.style.background = "#34c759";
         
-        btn.innerHTML = "Assigned Successfully! ✅";
-        btn.style.background = "#34c759";
-        setTimeout(() => {
-          window.closeHubPanel();
-          loadTAReport(db, currentUID, contentArea); // Refresh the hub
-        }, 1000);
-      } catch(err) {
-        console.error(err);
-        alert("Assignment failed.");
-        btn.innerHTML = "Assign to Innovator 🚀"; btn.disabled = false;
-      }
+        window.forceTAHubRefresh = true;
+        setTimeout(() => { window.closeHubPanel(); loadTAReport(db, currentUID, contentArea); }, 1000);
+      } catch(err) { alert("Assignment failed."); btn.innerHTML = "Assign to Innovator 🚀"; btn.disabled = false; }
     };
 
     window.updateStatus = async function(taId, newStatus) {
       if (userRole === 'student') return;
       await updateDoc(doc(db, "tinkering_activities", taId), { status: newStatus });
+      window.forceTAHubRefresh = true;
       window.closeHubPanel();
       setTimeout(() => loadTAReport(db, currentUID, contentArea), 350);
     };
 
   } catch (error) {
-    console.error(error);
-    contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30;">System Error. Data retrieval failed.</div>`;
+    container.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30;">System Error. Data retrieval failed.</div>`;
   }
 }
 export async function loadPersonnelManagement(db, currentUID, contentArea) {
