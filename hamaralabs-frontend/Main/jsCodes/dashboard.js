@@ -111,6 +111,11 @@ function renderSidebar(role) {
         document.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));item.classList.add("active"); loadSection(module);}; sidebar.appendChild(item);});});}
 //load sec
 async function loadSection(section) {
+  if (window.innerWidth <= 768) {
+   document.getElementById('sidebar').classList.remove('open');
+   document.getElementById('sidebarOverlay').classList.remove('active');
+   document.body.style.overflow = '';
+}
   clearListener();
   contentArea.innerHTML = `<div class="loader">Loading...</div>`;
   if (section === "Tinkering Activity Form") { loadTAForm(db, currentUID, contentArea);return;}
@@ -140,36 +145,23 @@ if (section === "studentSnapshot") {
           const userSnap = await getDoc(doc(db, "users", currentUID));
           const userData = userSnap.exists() ? userSnap.data() : {};
           const role = (userData.role || "").toLowerCase(); 
-          
-          // 👑 1. ADMIN BYPASS
           if (role === "admin" || role === "platform-admin" || role === "super-admin") {
             import('./adminFxn.js')
               .then(module => module.loadStudentSnapshot(db, contentArea, null))
               .catch(err => contentArea.innerHTML = `Import Error: ${err.message}`);
-            return;
-          }
-
-          // 🧑‍🏫 2. STAFF ROUTING
+            return;}
           let mySchoolId = userData.schoolId;
           if (!mySchoolId) {
             const assignSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
-            if (!assignSnap.empty) mySchoolId = assignSnap.docs[0].data().schoolId;
-          }
-
+            if (!assignSnap.empty) mySchoolId = assignSnap.docs[0].data().schoolId;}
           if (!mySchoolId) {
             contentArea.innerHTML = `<div style="padding: 40px; text-align: center; color: #ef4444; font-weight: 600;">⚠️ No school assigned to your profile.</div>`;
-            return;
-          }
-
-          // 🚀 4. DEPLOY STAFF VIEW
+            return;}
           import('./adminFxn.js')
             .then(module => module.loadStudentSnapshot(db, contentArea, mySchoolId))
             .catch(err => contentArea.innerHTML = `Import Error: ${err.message}`);
-
         } catch (err) {
-          contentArea.innerHTML = `Database Error: ${err.message}`;
-        }
-      });
+          contentArea.innerHTML = `Database Error: ${err.message}`;}});
       return;
     }if (section === "Tinkering Activity Form") { loadTAForm(db, currentUID, contentArea);return;}
 if (section === "tinkering activity report") { loadTAReport(db, currentUID, contentArea);return; }
@@ -438,11 +430,7 @@ window.loadInlineDoubts = function(taskId, containerId) {
            <div style="font-size:0.75rem; color:#888;">${doubt.replyAt?.toDate ? doubt.replyAt.toDate().toLocaleString() : ""}</div>
          </div>`;}
       html += `</div>`;
-      container.innerHTML += html;
-    });
-  });
-};
-
+      container.innerHTML += html;});});};
 window.closeMentorDetailPanel = function () {
   const panel = document.getElementById("mentorDetailPanel"); 
   if (panel) {panel.classList.add("hidden"); 
@@ -462,9 +450,7 @@ window.generateTaskWithAI = async function() {
     if (document.getElementById("taskDueDate")) { const d = new Date(); d.setDate(d.getDate() + (result.daysToComplete || 7)); document.getElementById("taskDueDate").value = d.toISOString().split('T')[0]; }
     generateBtn.innerHTML = "✅ Done!";
   } catch (error) { console.error("Error:", error); generateBtn.innerHTML = "❌ Error"; } 
-  finally { generateBtn.disabled = false; setTimeout(() => { generateBtn.innerHTML = "Auto-Write"; }, 2000); }
-};
-
+  finally { generateBtn.disabled = false; setTimeout(() => { generateBtn.innerHTML = "Auto-Write"; }, 2000); }};
 function loadTinkerLab() {
   contentArea.innerHTML = `
     <style>
@@ -475,14 +461,11 @@ function loadTinkerLab() {
       .pfile::before { content: ""; position: absolute; top: 6px; left: 6px; width: 28px; height: 4px; background-color: #ffffff; border-radius: 2px; }
       .pfile::after { content: ""; position: absolute; top: 13px; left: 6px; width: 18px; height: 4px; background-color: #ffffff; border-radius: 2px; }
       @keyframes flyRight { 0% { left: -10%; transform: scale(0); opacity: 0; } 50% { left: 45%; transform: scale(1.2); opacity: 1; } 100% { left: 100%; transform: scale(0); opacity: 0; } }
-      .pfile { animation-delay: calc(var(--i) * 0.6s); }
-    </style>
-    
+      .pfile { animation-delay: calc(var(--i) * 0.6s); }</style>
     <div id="tinker-premium-workspace">
       <div class="tinker-wrapper-card">
         <div class="tinker-header">✨ AI Activity Lab</div>
         <div class="tinker-subtitle">Design highly engaging, hands-on ATL projects tailored precisely to a student's unique interests.</div> 
-        
         <div class="tinker-input-group" style="display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-wrap: wrap;">
           <select id="tinkerDifficulty" style="padding: 14px 16px; border-radius: 12px; border: 1px solid #e4e4e7; font-size: 0.95rem; font-weight: 600; background: #fff; color: #3f3f46; cursor: pointer; outline: none; min-width: 160px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
             <option value="Beginner">🟢 Beginner</option>
@@ -496,18 +479,15 @@ function loadTinkerLab() {
             <div style="--i: 0;" class="pfile"></div><div style="--i: 1;" class="pfile"></div><div class="pfile" style="--i: 2;"></div>
             <div class="pfile" style="--i: 3;"></div><div class="pfile" style="--i: 4;"></div><div class="pfile" style="--i: 5;"></div></div>
           <div style="color: #666; font-weight: 600; margin-top: -15px; font-size: 0.9rem;">Processing AI Blueprint...</div></div>
-        <div id="tinkerOutput" style="display: none;">
+        <div id="tinkerOutput" style="display: none;"> 
           <h3 id="resTitle"></h3><div id="resSteps"></div>
           <div class="tinker-badge-materials"><strong style="color: #4169e1; margin-right: 8px;">🛠️ Required Materials:</strong><span id="resMaterials"></span></div>
           <div class="tinker-badge-learning"><strong style="color: #ff9500; margin-right: 8px;">🧠 Learning Outcome:</strong><span id="resLearning"></span></div>
           <div><button id="initAssignBtn" onclick="openTinkerAssignForm()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>Assign to Student</button></div>
           <div id="tinkerAssignContainer" style="display:none;"><h4 class="tinker-assign-title">Finalize Assignment</h4><div class="tinker-grid"><div class="tinker-input-col"><label class="tinker-label">Select School</label><select id="tinkerSchool" class="tinker-select" onchange="loadTinkerStudents(this.value)"></select></div><div class="tinker-input-col"><label class="tinker-label">Select Student</label><select id="tinkerStudent" class="tinker-select" disabled><option value="">Waiting for school...</option></select></div>
           <div class="tinker-input-col"><label class="tinker-label">Due Date</label><input type="date" id="tinkerDate" class="tinker-date"></div><div class="tinker-input-col"><label class="tinker-label">Priority Level</label><select id="tinkerPri" class="tinker-select"><option value="medium">🟡 Medium Priority</option><option value="high">🔴 High Priority</option><option value="low">🟢 Low Priority</option></select></div></div>
-          <button id="finalAssignBtn" onclick="confirmTinkerAssignment()">Confirm & Deploy Task</button></div></div></div></div>`;
-}
-
+          <button id="finalAssignBtn" onclick="confirmTinkerAssignment()">Confirm & Deploy Task</button></div></div></div></div>`;}
 window.currentTinkerActivity = null;
-
 window.generateTinkerActivity = async function() {
   const interestInput = document.getElementById("tinkerInterest"), 
         difficultyInput = document.getElementById("tinkerDifficulty"), 
@@ -523,8 +503,7 @@ window.generateTinkerActivity = async function() {
   output.style.display = "none";
   loader.style.display = "flex"; 
   const prompt = `Act as a creative Atal tinkering Lab Expert. Design an innovative, hands-on project at a **${difficulty}** difficulty level for a student interested in "${interest}". Utilize standard ATL equipment suitable for a ${difficulty} skill level. Return ONLY JSON: {"title": "Catchy Project Title", "steps": "3-4-5 detailed steps on the basis of the content using HTML <br> tags.", "materials": "Comma separated list", "learning": "Core concept"}`;
-  try {
-    const response = await fetch('https://hamaralabs.vercel.app/api/generateTask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ promptText: prompt }) });
+  try {const response = await fetch('https://hamaralabs.vercel.app/api/generateTask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ promptText: prompt }) });
     const data = await response.json(); if (!response.ok) throw new Error(data.message || "Failed to generate");
     const result = JSON.parse(data.candidates[0].content.parts[0].text.replace(/```json/g, "").replace(/```/g, "").trim());
     window.currentTinkerActivity = { 
@@ -539,42 +518,32 @@ window.generateTinkerActivity = async function() {
     output.style.display = "block"; 
     btn.innerText = "Generate Another";
   } catch (error) { console.error("Error:", error); alert(`Generation Error: ${error.message}`); btn.innerText = "Try Again"; loader.style.display = "none"; } 
-  finally { btn.disabled = false; }
-};
-
+  finally { btn.disabled = false; }};
 window.openTinkerAssignForm = async function() {
   const container = document.getElementById("tinkerAssignContainer"), schoolSelect = document.getElementById("tinkerSchool");
   container.style.display = "block"; schoolSelect.innerHTML = `<option value="">Loading schools...</option>`;
-  try {
-    const schoolSnap = await getDocs(query(collection(db, "mentorSchoolAssignments"), where("mentorId", "==", currentUID)));
+  try {const schoolSnap = await getDocs(query(collection(db, "mentorSchoolAssignments"), where("mentorId", "==", currentUID)));
     if (schoolSnap.empty) { schoolSelect.innerHTML = `<option value="">No Schools Assigned</option>`; return; }
     let html = `<option value="">-- Choose a School --</option>`;
     for (const docSnap of schoolSnap.docs) {
       const schoolId = docSnap.data().schoolId, schoolRef = await getDoc(doc(db, "schools", schoolId));
       html += `<option value="${schoolId}">${schoolRef.exists() ? (schoolRef.data().schoolName || schoolRef.data().name || schoolId) : schoolId}</option>`;}
-    schoolSelect.innerHTML = html;} catch(e) { console.error(e); schoolSelect.innerHTML = `<option value="">Error loading schools</option>`; }
-};
-
+    schoolSelect.innerHTML = html;} catch(e) { console.error(e); schoolSelect.innerHTML = `<option value="">Error loading schools</option>`; }};
 window.loadTinkerStudents = async function(schoolId) {
   const studentSelect = document.getElementById("tinkerStudent");
   if (!schoolId) { studentSelect.innerHTML = `<option value="">Waiting for school...</option>`; studentSelect.disabled = true; return; }
   studentSelect.disabled = false; studentSelect.innerHTML = `<option value="">Loading students...</option>`;
-  try {
-    const studentSnap = await getDocs(query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", schoolId)));
+  try {const studentSnap = await getDocs(query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", schoolId)));
     if (studentSnap.empty) { studentSelect.innerHTML = `<option value="">No Students Found</option>`; return; }
     let html = `<option value="">-- Choose a Student --</option>`;
     studentSnap.forEach(docSnap => html += `<option value="${docSnap.id}">${docSnap.data().name}</option>`);
-    studentSelect.innerHTML = html;
-  } catch(e) { console.error(e); studentSelect.innerHTML = `<option value="">Error loading students</option>`; }
-};
-
+    studentSelect.innerHTML = html;} catch(e) { console.error(e); studentSelect.innerHTML = `<option value="">Error loading students</option>`; }};
 window.confirmTinkerAssignment = async function() {
   if (!window.currentTinkerActivity) { alert("Generate an activity first!"); return; }
   const schoolId = document.getElementById("tinkerSchool").value, studentId = document.getElementById("tinkerStudent").value, dueDate = document.getElementById("tinkerDate").value, priority = document.getElementById("tinkerPri").value, btn = document.getElementById("finalAssignBtn");
   if (!schoolId || !studentId || !dueDate) { alert("Please select a school, student, and a due date."); return; }
   btn.innerHTML = "Deploying Task..."; btn.disabled = true;
-  try {
-    await addDoc(collection(db, "tasks"), { 
+  try {await addDoc(collection(db, "tasks"), { 
       title: window.currentTinkerActivity.title, 
       description: window.currentTinkerActivity.description, 
       difficulty: window.currentTinkerActivity.difficulty || "Intermediate", 
@@ -585,26 +554,28 @@ window.confirmTinkerAssignment = async function() {
       mentorId: currentUID, 
       status: "assigned", 
       progress: 0, 
-      assignedAt: serverTimestamp() 
-    });
-    
-    // 💎 PRO INTEGRATION: Notify Student of AI Task
+      assignedAt: serverTimestamp() });
     const stuSnap = await getDoc(doc(db, "users", studentId));
     if (stuSnap.exists()) {
         dispatchEmailNotification("TASK_ASSIGNED", stuSnap.data().email, {
-            studentName: stuSnap.data().name,
-            taskTitle: window.currentTinkerActivity.title,
-            priority: priority,
-            dueDate: dueDate
-        });
-    }
-    
+            studentName: stuSnap.data().name, taskTitle: window.currentTinkerActivity.title, priority: priority, dueDate: dueDate});}
     btn.innerHTML = "Assigned Successfully! ✓"; btn.style.background = "#27ae60";
     const rect = btn.getBoundingClientRect(); if (typeof confettiBurst === "function") confettiBurst(rect.left + rect.width / 2, rect.top + rect.height / 2);
-    setTimeout(() => {
-      btn.innerHTML = "Confirm & Deploy Task"; btn.style.background = ""; btn.disabled = false;
+    setTimeout(() => {btn.innerHTML = "Confirm & Deploy Task"; btn.style.background = ""; btn.disabled = false;
       document.getElementById("tinkerAssignContainer").style.display = "none";
-      document.getElementById("tinkerSchool").value = ""; document.getElementById("tinkerStudent").value = ""; document.getElementById("tinkerStudent").disabled = true; document.getElementById("tinkerDate").value = "";
-    }, 2500);
-  } catch(e) { console.error("Assignment error:", e); alert("Failed to assign task."); btn.innerHTML = "Try Again"; btn.disabled = false; }
+      document.getElementById("tinkerSchool").value = ""; document.getElementById("tinkerStudent").value = ""; document.getElementById("tinkerStudent").disabled = true; document.getElementById("tinkerDate").value = "";}, 2500);
+  } catch(e) { console.error("Assignment error:", e); alert("Failed to assign task."); btn.innerHTML = "Try Again"; btn.disabled = false; }};
+  window.toggleMobileMenu = function() {
+  const sidebar = document.getElementById('sidebar'); // Make sure your sidebar has id="sidebar"
+  const overlay = document.getElementById('sidebarOverlay');
+  
+  if (sidebar.classList.contains('open')) {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+    document.body.style.overflow = ''; // Allow scrolling again
+  } else {
+    sidebar.classList.add('open');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+  }
 };

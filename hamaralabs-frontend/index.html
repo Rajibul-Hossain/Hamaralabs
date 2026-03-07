@@ -12,10 +12,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Petrona:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Sofia&display=swap" rel="stylesheet">
   <link href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/regular/style.css" rel="stylesheet">
   <link rel="stylesheet" href="Main/Css/auth.css" />
-</head>
-<body>
+</head><body>
 <div class="logo-watermark"></div><main class="auth-shell">
-    <section class="auth-card"><header class="auth-header"><h1>Hamara Labs </h1><p>Digital ATL Labs</p></header>
+    <section class="auth-card"><header class="auth-header"><h1>HamaraLabs </h1><p>Digital ATL Labs</p></header>
       <div class="auth-flow">
         <div class="expand-group active" id="emailGroup">
           <button class="expand-trigger">Register Yourself</button>
@@ -30,8 +29,7 @@
             <input type="email" placeholder="Enter your Email Id 📥" />
             <input type="password" placeholder="Password" />
             <button class="primary-btn">Login</button>
-          </div>
-        </div>
+          </div></div>
         <div class="provider-section">
           <p class="provider-label">Or continue with</p>
           <div class="provider-grid">
@@ -45,30 +43,23 @@
     <button type="button" data-role="mentor" class="role-btn">Mentor</button>
     <button type="button" data-role="atl-incharge" class="role-btn">ATL incharge</button>
     </div></div></div><div id="feedback" class="feedback"></div>
-    </section>
-  </main>
-  <canvas id="snowCanvas"></canvas>
+    </section></main>
+<canvas id="snowCanvas"></canvas>
 <div class="leaf-layer">
   <img src="img/idea.svg" alt="Unable to Load Image" class="leaf leaf-top-left" />
   <img src="img/idea.svg" alt="Unable to Load Image" class="leaf leaf-top-right" />
   <img src="img/idea.svg" alt="Unable to Load Image" class="leaf leaf-mid-left" />
   <img src="img/idea.svg" alt="Unable to Load Image" class="leaf leaf-mid-right" />
-</div>
-  <script>
+</div><script>
     document.querySelectorAll(".expand-trigger").forEach(trigger => {
-      trigger.addEventListener("click", () => {
-        const group = trigger.closest(".expand-group");
-        document.querySelectorAll(".expand-group").forEach(g => {
-          if (g !== group) g.classList.remove("active");});
+      trigger.addEventListener("click", () => {const group = trigger.closest(".expand-group");
+        document.querySelectorAll(".expand-group").forEach(g => {if (g !== group) g.classList.remove("active");});
         group.classList.toggle("active");});});
-  </script>
-  <script>
+  </script><script>
   const canvas = document.getElementById("snowCanvas");
   const ctx = canvas.getContext("2d");
   let w, h;
-  function resize() {
-    w = canvas.width = window.innerWidth;
-    h = canvas.height = window.innerHeight;}
+  function resize() {w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight;}
   resize();
   window.addEventListener("resize", resize);
   const particles = Array.from({ length: 60 }, () => ({
@@ -76,8 +67,7 @@
     y: Math.random() * h,
     r: Math.random() * 1.8 + 0.6,
     s: Math.random() * 0.6 + 0.2,
-    o: Math.random() * 0.4 + 0.2
-  }));
+    o: Math.random() * 0.4 + 0.2}));
   function draw() {
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = "rgba(180,255,220,0.5)";

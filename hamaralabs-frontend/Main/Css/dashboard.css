@@ -485,3 +485,147 @@ box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12),inset 0 1px 1px rgba(255, 255, 255, 
 #studentList .card > div:nth-child(4) { animation-delay: 0.15s; }
 #studentList .card > div:nth-child(5) { animation-delay: 0.2s; }
 #studentList .card > div:nth-child(6) { animation-delay: 0.25s; }
+/* ==========================================================================
+   📱 HAMARALABS GLOBAL MOBILE ARCHITECTURE (Max Width: 768px)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* 1. FLUID SPACING & PADDING */
+  body { font-size: 14px; } /* Slightly smaller base font for mobile */
+  
+  /* Shrink massive desktop paddings */
+  .snap-theme-container, 
+  .hub-wrapper, 
+  .oui-wrapper,
+  #dashboardContent {
+    padding: 16px 12px !important;
+  }
+
+  /* Shrink internal card paddings */
+  .snap-surface-card,
+  .oui-surface-card,
+  [style*="padding: 32px"], 
+  [style*="padding:32px"] {
+    padding: 20px !important;
+  }
+
+  /* 2. AUTO-STACKING FLEXBOX & GRIDS */
+  /* Force all filter rows and button groups to stack vertically */
+  .hub-controls, 
+  .snap-controls, 
+  .oui-form-grid,
+  [style*="display: flex; gap: 16px; flex-wrap: wrap;"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  /* Make sure inputs and dropdowns stretch full width on mobile */
+  .snap-pro-select, 
+  .oui-select, 
+  input[type="text"], 
+  select {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 3. TOUCH TARGET OPTIMIZATION (Fat Finger Fix) */
+  button, 
+  .snap-tab-btn, 
+  .oui-btn-primary {
+    min-height: 48px !important; /* Apple Human Interface Guideline minimum */
+    width: 100% !important; /* Make buttons full width on mobile */
+    justify-content: center !important;
+    margin-top: 8px !important;
+  }
+
+  /* 4. MODALS BECOME BOTTOM SHEETS (Apple iOS Style) */
+  .td-modal, 
+  .tm-modal, 
+  .hub-mac-modal, 
+  .oui-modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 90vh !important;
+    border-radius: 24px 24px 0 0 !important; /* Round top, flat bottom */
+    position: absolute !important;
+    bottom: 0 !important; /* Pin to bottom of screen */
+    transform: translateY(100%) !important; /* Start off screen */
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    margin: 0 !important;
+    border: none !important;
+  }
+
+  /* When active, slide up from the bottom */
+  .active .td-modal, 
+  .active .tm-modal, 
+  .active .hub-mac-modal, 
+  .active .oui-modal-content {
+    transform: translateY(0) !important;
+  }
+
+  /* Add a little drag handle visual to the top of mobile modals */
+  .td-modal::before, 
+  .hub-mac-modal::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 5px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    margin: 12px auto -10px auto;
+  }
+}
+/* Mobile Header (Only visible on mobile) */
+.mobile-header {
+  display: none;
+  background: #fff;
+  padding: 16px 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-menu-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #0f172a;
+}
+
+@media (max-width: 768px) {
+  .mobile-header { display: flex; }
+  
+  /* Assume your sidebar has an ID of #sidebar */
+  #sidebar {
+    position: fixed;
+    left: -100%; /* Hide off-screen */
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 2000;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 10px 0 30px rgba(0,0,0,0.1);
+  }
+
+  #sidebar.open {
+    left: 0; /* Slide in */
+  }
+
+  /* Overlay to darken background when sidebar is open */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(4px);
+    z-index: 1999;
+    display: none;
+  }
+  .sidebar-overlay.active { display: block; }
+}

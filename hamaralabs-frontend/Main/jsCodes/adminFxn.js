@@ -1,7 +1,6 @@
 import { collection, query, where, getCountFromServer, getDocs, updateDoc, addDoc, doc, deleteDoc, getDoc, persistentLocalCache, persistentMultipleTabManager, } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth,signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { stCss, csss } from "./animations.js";
-import { withHyperCache } from "./dataEngine.js";
+
 export async function loadAdminOverview(db, contentArea) {const container = contentArea || document.getElementById("dashboardContent");
   if (!container) return;
   try {const schoolsColl = collection(db, "schools");const tasksColl = collection(db, "tasks");
@@ -1134,46 +1133,87 @@ export async function loadStudentRegistration(db, contentArea) {
       document.getElementById('slDrawer').classList.remove('active');};
   } catch (error) {console.error("Error loading student list:", error);
     container.innerHTML = `<div style="text-align:center; padding: 40px; color: #ef4444; font-weight:600;">Failed to load directory. Check console.</div>`;
-  }}export async function loadStudentSnapshot(db, contentArea, restrictedSchoolId = null) {
+  }}
+  export async function loadStudentSnapshot(db, contentArea, restrictedSchoolId = null) {
   const container = contentArea || document.getElementById("dashboardContent");
   if (!container) return;
+
   const safeStr = (str) => {
     if (!str) return '';
     return String(str).replace(/[&<>"']/g, function(m) {
-      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[m];});};
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[m];
+    });
+  };
+
+  const getSortTime = (item) => {
+    if (item.createdAt && typeof item.createdAt.toMillis === 'function') return item.createdAt.toMillis();
+    if (item.timestamp && typeof item.timestamp.toMillis === 'function') return item.timestamp.toMillis();
+    if (item.deployedAt && typeof item.deployedAt.toMillis === 'function') return item.deployedAt.toMillis();
+    if (item.createdAt) return new Date(item.createdAt).getTime() || 0;
+    return 0;
+  };
+
+  // State Memory for Tabs
+  window.activeSnapTab = window.activeSnapTab || 'tab-missions';
+
+  // Master CSS for Tabs (Injected globally)
+  const tabCss = `
+    <style>
+      .snap-tab-container { background: #f1f5f9; padding: 6px; border-radius: 14px; display: inline-flex; gap: 4px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 24px; }
+      .snap-tab-btn { background: transparent; color: #64748b; border: none; padding: 12px 24px; border-radius: 10px; font-size: 1.05rem; font-weight: 600; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+      .snap-tab-btn:hover { color: #0f172a; }
+      .snap-tab-btn.active { background: #fff; color: #0f172a; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.05); }
+      .snap-tab-content { animation: tabFadeIn 0.3s ease-out; }
+      @keyframes tabFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+  `;
+
   try {
     const { collection, query, where, getDocs, doc, getDoc, deleteDoc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
     const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+    
     window.snapshotDb = db;
     window.snapshotGetDoc = getDoc;
     window.snapshotDocRef = doc;
+    window.snapshotStudents = window.snapshotStudents || {}; 
+
+    // ⚡ 1. SWR CACHE CHECK
     const cacheKey = `snap_persist_${restrictedSchoolId || 'global'}`;
     const savedData = localStorage.getItem(cacheKey);
+    
     if (savedData && !window.forceSnapshotRefresh) {
-      console.log("⚡ SWR: Loading instantly from Hard Drive...");
       try {
         const parsed = JSON.parse(savedData);
-        window.snapshotStudents = parsed.students;
-        window.allStudentsList = parsed.studentList;
+        window.snapshotStudents = parsed.students || {};
+        window.allStudentsList = parsed.studentList || [];
+        window.snapshotMetaMap = parsed.metaMap || [];
         container.innerHTML = parsed.html;
+        
         const header = container.querySelector('.snap-header h2');
-        if (header) {
-          header.innerHTML += `<span id="silent-sync-badge" style="font-size:0.8rem; color:#007aff; background:rgba(0,122,255,0.1); padding:4px 10px; border-radius:10px; margin-left:12px; vertical-align:middle; display:inline-flex; align-items:center; gap:6px;"><span style="width:6px; height:6px; background:#007aff; border-radius:50%; animation:pulse 1s infinite;"></span> Syncing</span><style>@keyframes pulse { 0% {opacity:1;} 50% {opacity:0.3;} 100% {opacity:1;} }</style>`;
+        if (header && !header.innerHTML.includes('Syncing')) {
+          header.innerHTML += `<span id="silent-sync-badge" style="font-size:0.8rem; color:#3b82f6; background:rgba(59, 130, 246, 0.1); padding:4px 10px; border-radius:10px; margin-left:12px; vertical-align:middle; display:inline-flex; align-items:center; gap:6px;"><span style="width:6px; height:6px; background:#3b82f6; border-radius:50%; animation:pulse 1s infinite;"></span> Syncing</span>`;
         }
+        
+        // Restore active tab visually on cache load
+        setTimeout(() => window.switchSnapshotTab(window.activeSnapTab), 50);
       } catch(e) { console.error("Cache corrupted, fetching fresh."); }
     } else {
       container.innerHTML = `<div style="text-align:center; padding: 80px; color: #71717a; font-family: 'Plus Jakarta Sans', sans-serif;">Aggregating Global Snapshot... <span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span></div><style>@keyframes spin { 100% { transform:rotate(360deg); } }</style>`;
     }
+
     window.forceSnapshotRefresh = false;
+
+    // 🔐 2. AUTH & ROLE ROUTING
     const auth = getAuth();
     const currentUID = auth.currentUser ? auth.currentUser.uid : null;
     if (!currentUID) return;
+
     const userSnap = await getDoc(doc(db, "users", currentUID));
     if (!userSnap.exists()) return;
     const userData = userSnap.data();
     const userRole = userData.role || 'student';
     
-    const isAdmin = (userRole === 'admin' || userRole === 'platform-admin');
+    const isAdmin = (userRole === 'admin' || userRole === 'platform-admin' || userRole === 'super-admin');
     let actualSchoolId = restrictedSchoolId || userData.schoolId;
 
     if (!isAdmin && (userRole === "atl-incharge" || userRole === "school-admin") && !actualSchoolId && !restrictedSchoolId) {
@@ -1187,317 +1227,321 @@ export async function loadStudentRegistration(db, contentArea) {
     }
 
     if (isAdmin && !restrictedSchoolId) actualSchoolId = null; 
-    const studentQuery = actualSchoolId ? query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", actualSchoolId)) : query(collection(db, "users"), where("role", "==", "student"));
-    const tasksQuery = actualSchoolId ? query(collection(db, "tasks"), where("schoolId", "==", actualSchoolId)) : collection(db, "tasks");
-    const taQuery = actualSchoolId ? query(collection(db, "tinkering_activities"), where("schoolId", "==", actualSchoolId)) : collection(db, "tinkering_activities");
-    const [schoolsSnap, studentsSnap, tasksSnap, taSnap] = await Promise.all([
-      getDocs(collection(db, "schools")), getDocs(studentQuery), getDocs(tasksQuery), getDocs(taQuery)
-    ]);
 
-    const dataArchitecture = {};
-    window.snapshotStudents = {}; 
-    window.allStudentsList = [];  
-    
-    let schoolFilterOptions = `<option value="all">All Institutions</option>`;
-    schoolsSnap.forEach(doc => {
-      const sName = doc.data().schoolName || doc.data().name || "Unnamed School";
-      dataArchitecture[doc.id] = { schoolName: sName, students: {} };
-      schoolFilterOptions += `<option value="${doc.id}">${safeStr(sName)}</option>`;
-    });
-    
-    dataArchitecture["unassigned"] = { schoolName: "Unassigned / Independent", students: {} };
-    schoolFilterOptions += `<option value="unassigned">Unassigned / Independent</option>`;
-    
-    const studentToSchoolMap = {};
-    
-    studentsSnap.forEach(doc => {
-      const d = doc.data();
-      const sId = d.schoolId && dataArchitecture[d.schoolId] ? d.schoolId : "unassigned";
-      const studentObj = { id: doc.id, name: d.name || "Unknown Student", email: d.email || "", tasks: [], missions: [] };
-      dataArchitecture[sId].students[doc.id] = studentObj;
-      window.snapshotStudents[doc.id] = studentObj;
-      window.allStudentsList.push({ id: doc.id, name: studentObj.name });
-      studentToSchoolMap[doc.id] = sId;
-    });
-
-    tasksSnap.forEach(doc => {
-      const t = doc.data(); 
-      const studentId = t.studentId;
-      if (studentId && studentToSchoolMap[studentId]) {
-        dataArchitecture[studentToSchoolMap[studentId]].students[studentId].tasks.push({ id: doc.id, ...t });
-      }
-    });
-
-    taSnap.forEach(doc => {
-      const ta = doc.data();
-      const studentId = ta.assignedTo;
-      if (studentId && studentId !== 'unassigned' && studentToSchoolMap[studentId]) {
-        dataArchitecture[studentToSchoolMap[studentId]].students[studentId].missions.push({ id: doc.id, ...ta });
-      }
-    });
-
-    // 4. 🎨 BUILD HTML (And seamlessly update the screen)
-    let finalHtmlPayload = '';
-
+    // ========================================================================
+    // 🧑‍🎓 ROLE: STUDENT VIEW 
+    // ========================================================================
     if (userRole === "student") {
-      const me = window.snapshotStudents[currentUID];
-      if (!me) { container.innerHTML = `<div style="padding:40px; text-align:center;">Profile not found.</div>`; return; }
+      const [tasksSnap, taSnap] = await Promise.all([
+        getDocs(query(collection(db, "tasks"), where("studentId", "==", currentUID))),
+        getDocs(query(collection(db, "tinkering_activities"), where("assignedTo", "==", currentUID)))
+      ]);
 
-      const myTasks = me.tasks.length;
-      const myCompletedTasks = me.tasks.filter(t => (t.status||'').toLowerCase() === 'completed').length;
-      const myMissions = me.missions.length;
-      const myCompletedMissions = me.missions.filter(m => (m.status||'').toLowerCase() === 'completed').length;
-      const totalItems = myTasks + myMissions;
-      const totalCompleted = myCompletedTasks + myCompletedMissions;
+      let myTasks = []; let myMissions = [];
+      tasksSnap.forEach(doc => myTasks.push({ id: doc.id, ...doc.data() }));
+      taSnap.forEach(doc => myMissions.push({ id: doc.id, ...doc.data() }));
+
+      myTasks.sort((a, b) => getSortTime(b) - getSortTime(a));
+      myMissions.sort((a, b) => getSortTime(b) - getSortTime(a));
+
+      window.snapshotStudents[currentUID] = { id: currentUID, name: userData.name, email: userData.email, tasks: myTasks, missions: myMissions };
+
+      const totalItems = myTasks.length + myMissions.length;
+      const totalCompleted = myTasks.filter(t => (t.status||'').toLowerCase() === 'completed').length + myMissions.filter(m => (m.status||'').toLowerCase() === 'completed').length;
       const myProgress = totalItems === 0 ? 0 : Math.round((totalCompleted / totalItems) * 100);
 
-      finalHtmlPayload = `
+      const finalHtmlPayload = `
         ${typeof csss !== 'undefined' ? csss : ''}
+        ${tabCss}
         <div style="max-width: 900px; margin: 0 auto; padding: 40px 10px; font-family: -apple-system, sans-serif; animation: taFadeIn 0.5s ease;">
           <div class="snap-header">
-            <h2 style="font-size:2.4rem; font-weight:800; color:#1c1c1e; margin:0 0 8px 0; letter-spacing:-1px;">My Telemetry</h2>
+            <h2 style="font-size:2.4rem; font-weight:800; color:#0f172a; margin:0 0 8px 0; letter-spacing:-1px;">My Telemetry</h2>
           </div>
-          <p style="color:#8e8e93; font-size:1.1rem; margin-bottom:40px; font-weight:500;">Monitor your tasks and Tinkering Activity progress.</p>
+          <p style="color:#64748b; font-size:1.1rem; margin-bottom:40px; font-weight:500;">Monitor your tasks and Tinkering Activity progress.</p>
           
-          <div style="background:#fff; border-radius:24px; padding:32px; box-shadow:0 10px 30px rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.04); display:flex; align-items:center; gap:24px; margin-bottom:40px;">
-            <div style="width:80px; height:80px; border-radius:50%; background:conic-gradient(from ${myProgress * 3.6}deg, #e5e5ea, #e5e5ea), conic-gradient(#007aff, #34c759); display:flex; justify-content:center; align-items:center; border: 8px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.05);">
-              <div style="background:#fff; width:100%; height:100%; border-radius:50%; display:flex; justify-content:center; align-items:center; font-weight:800; font-size:1.2rem; color:#1c1c1e;">${myProgress}%</div>
+          <div style="background:#fff; border-radius:24px; padding:32px; box-shadow:0 4px 20px rgba(0,0,0,0.03); border:1px solid #f1f5f9; display:flex; align-items:center; gap:24px; margin-bottom:40px;">
+            <div style="width:80px; height:80px; border-radius:50%; background:conic-gradient(from ${myProgress * 3.6}deg, #f1f5f9, #f1f5f9), conic-gradient(#3b82f6, #10b981); display:flex; justify-content:center; align-items:center; border: 8px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.05);">
+              <div style="background:#fff; width:100%; height:100%; border-radius:50%; display:flex; justify-content:center; align-items:center; font-weight:800; font-size:1.2rem; color:#0f172a;">${myProgress}%</div>
             </div>
             <div>
-              <h3 style="margin:0 0 8px 0; font-size:1.4rem; color:#1c1c1e;">Global Completion</h3>
-              <div style="color:#8e8e93; font-weight:600;">${totalCompleted} of ${totalItems} Total Assignments Verified</div>
+              <h3 style="margin:0 0 8px 0; font-size:1.4rem; color:#0f172a;">Global Completion</h3>
+              <div style="color:#64748b; font-weight:600;">${totalCompleted} of ${totalItems} Total Assignments Verified</div>
             </div>
           </div>
           
-          <h3 style="font-size:1.2rem; color:#1c1c1e; margin-bottom:16px;">Tinkering Activities (Missions)</h3>
-          <div style="background:#fff; border-radius:20px; padding:12px 24px; border:1px solid rgba(0,0,0,0.05); margin-bottom:32px;">
-            ${me.missions.map(m => `
-              <div onclick="window.openTADetailModal('${m.id}')" style="cursor:pointer; padding:16px 0; border-bottom:1px solid #f2f2f7; display:flex; justify-content:space-between; align-items:center; transition:0.2s;" onmouseover="this.style.paddingLeft='8px'" onmouseout="this.style.paddingLeft='0'">
-                <span style="font-weight:600; color:#1c1c1e;">${safeStr(m.activityName)}</span> 
-                <span style="background:rgba(0,122,255,0.1); padding:6px 12px; border-radius:10px; color:#007aff; font-size:0.75rem; text-transform:uppercase; font-weight:800;">${m.status||'Assigned'}</span>
-              </div>`).join('') || '<div style="color:#8e8e93; font-style:italic; padding:12px 0;">No missions deployed.</div>'}
+          <div style="display:flex; justify-content:center;">
+            <div class="snap-tab-container">
+              <button id="btn-tab-missions" class="snap-tab-btn ${window.activeSnapTab === 'tab-missions' ? 'active' : ''}" onclick="window.switchSnapshotTab('tab-missions')">Missions (${myMissions.length})</button>
+              <button id="btn-tab-tasks" class="snap-tab-btn ${window.activeSnapTab === 'tab-tasks' ? 'active' : ''}" onclick="window.switchSnapshotTab('tab-tasks')">Standard Tasks (${myTasks.length})</button>
+            </div>
           </div>
 
-          <h3 style="font-size:1.2rem; color:#1c1c1e; margin-bottom:16px;">Standard Tasks</h3>
-          <div style="background:#fff; border-radius:20px; padding:12px 24px; border:1px solid rgba(0,0,0,0.05);">
-            ${me.tasks.map(t => `
-              <div onclick="window.openTaskDetailModal('${t.id}')" style="cursor:pointer; padding:16px 0; border-bottom:1px solid #f2f2f7; display:flex; justify-content:space-between; align-items:center; transition:0.2s;" onmouseover="this.style.paddingLeft='8px'" onmouseout="this.style.paddingLeft='0'">
-                <span style="font-weight:600; color:#1c1c1e;">${safeStr(t.title)}</span> 
-                <span style="background:rgba(142,142,147,0.1); padding:6px 12px; border-radius:10px; color:#8e8e93; font-size:0.75rem; text-transform:uppercase; font-weight:800;">${t.status||'Assigned'}</span>
-              </div>`).join('') || '<div style="color:#8e8e93; font-style:italic; padding:12px 0;">No tasks assigned.</div>'}
+          <div id="tab-missions" class="snap-tab-content" style="display: ${window.activeSnapTab === 'tab-missions' ? 'block' : 'none'};">
+            <div style="background:#fff; border-radius:20px; padding:12px 24px; border:1px solid #f1f5f9; box-shadow:0 2px 10px rgba(0,0,0,0.02);">
+              ${myMissions.map(m => `
+                <div onclick="window.openTADetailModal('${m.id}')" style="cursor:pointer; padding:16px 0; border-bottom:1px solid #f8fafc; display:flex; justify-content:space-between; align-items:center; transition:0.2s;" onmouseover="this.style.paddingLeft='8px'" onmouseout="this.style.paddingLeft='0'">
+                  <span style="font-weight:600; color:#0f172a;">${safeStr(m.activityName)}</span> 
+                  <span style="background:rgba(59,130,246,0.1); padding:6px 12px; border-radius:8px; color:#3b82f6; font-size:0.75rem; text-transform:uppercase; font-weight:800;">${m.status||'Assigned'}</span>
+                </div>`).join('') || '<div style="color:#94a3b8; font-style:italic; padding:20px; text-align:center; font-weight:500;">No missions deployed.</div>'}
+            </div>
+          </div>
+
+          <div id="tab-tasks" class="snap-tab-content" style="display: ${window.activeSnapTab === 'tab-tasks' ? 'block' : 'none'};">
+            <div style="background:#fff; border-radius:20px; padding:12px 24px; border:1px solid #f1f5f9; box-shadow:0 2px 10px rgba(0,0,0,0.02);">
+              ${myTasks.map(t => `
+                <div onclick="window.openTaskDetailModal('${t.id}')" style="cursor:pointer; padding:16px 0; border-bottom:1px solid #f8fafc; display:flex; justify-content:space-between; align-items:center; transition:0.2s;" onmouseover="this.style.paddingLeft='8px'" onmouseout="this.style.paddingLeft='0'">
+                  <span style="font-weight:600; color:#0f172a;">${safeStr(t.title)}</span> 
+                  <span style="background:rgba(148,163,184,0.1); padding:6px 12px; border-radius:8px; color:#64748b; font-size:0.75rem; text-transform:uppercase; font-weight:800;">${t.status||'Assigned'}</span>
+                </div>`).join('') || '<div style="color:#94a3b8; font-style:italic; padding:20px; text-align:center; font-weight:500;">No tasks assigned.</div>'}
+            </div>
           </div>
         </div>
+        ${buildModalsHTML()}
+      `;
+      
+      container.innerHTML = finalHtmlPayload;
+      try { localStorage.setItem(cacheKey, JSON.stringify({ students: window.snapshotStudents, html: finalHtmlPayload })); } catch(e){}
+    } 
+    // ========================================================================
+    // 🧑‍🏫 ROLE: STAFF/ADMIN VIEW (Targeted Fetch)
+    // ========================================================================
+    else {
+      const studentQuery = actualSchoolId ? query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", actualSchoolId)) : query(collection(db, "users"), where("role", "==", "student"));
+      const [schoolsSnap, studentsSnap] = await Promise.all([ getDocs(collection(db, "schools")), getDocs(studentQuery) ]);
 
-        <div id="taskDetailOverlay" class="td-overlay" onclick="if(event.target===this) window.closeTaskDetailModal()">
-          <div class="td-modal">
-            <div class="td-header">
-              <h3 id="tdTitle" style="margin:0; font-size:1.4rem; font-weight:800; color:#111; letter-spacing: -0.02em;">Loading...</h3>
-              <button class="tm-close" onclick="window.closeTaskDetailModal()">✕</button>
+      const schoolNames = {};
+      schoolsSnap.forEach(s => schoolNames[s.id] = s.data().schoolName || s.data().name || "Unknown");
+
+      window.snapshotMetaMap = [];
+      const classesSet = new Set();
+      const schoolsSet = new Set();
+
+      studentsSnap.forEach(doc => {
+        const d = doc.data();
+        const sId = d.schoolId || "unassigned";
+        const sClass = d.class || d.grade || "Unassigned";
+        classesSet.add(sClass); schoolsSet.add(sId);
+        window.snapshotMetaMap.push({ id: doc.id, name: d.name || "Unknown", email: d.email || "", class: sClass, schoolId: sId, schoolName: schoolNames[sId] || "Unassigned" });
+      });
+
+      let adminSchoolSelect = '';
+      if (isAdmin) {
+        let schoolOpts = `<option value="all">-- All Institutions --</option>`;
+        Array.from(schoolsSet).forEach(sId => { schoolOpts += `<option value="${sId}">${safeStr(schoolNames[sId] || 'Unassigned')}</option>`; });
+        adminSchoolSelect = `<select id="snapTargetSchool" onchange="window.updateSnapDropdowns()" class="snap-pro-select">${schoolOpts}</select>`;
+      }
+
+      let classOpts = `<option value="all">-- All Classes --</option>`;
+      Array.from(classesSet).sort().forEach(c => { classOpts += `<option value="${c}">${safeStr(c)}</option>`; });
+
+      const finalHtmlPayload = `
+        ${typeof csss !== 'undefined' ? csss : ''} 
+        ${tabCss}
+        <style>
+          .snap-pro-select { flex: 1; padding: 16px 20px; border-radius: 12px; border: 1px solid #e2e8f0; background: #f8fafc; color: #0f172a; font-size: 1rem; font-weight: 500; outline: none; transition: all 0.2s ease; min-width: 200px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.01); appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 16px center; background-size: 16px; }
+          .snap-pro-select:focus { border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+          .snap-pro-btn { background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: #fff; border: none; border-radius: 12px; padding: 16px 32px; font-size: 1.05rem; font-weight: 700; letter-spacing: 0.3px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 14px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(255,255,255,0.2); display: inline-flex; justify-content: center; align-items: center; gap: 10px; }
+          .snap-pro-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
+          .snap-pro-btn:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2); }
+        </style>
+
+        <div class="snap-theme-container">
+          <div class="snap-header">
+            <h2 style="display:inline-block; margin-right:10px; color:#0f172a;">Innovator Telemetry</h2>
+            <p style="color:#64748b;">Target a specific student to load their live telemetry snapshot.</p>
+          </div>
+
+          <div style="background:#fff; border-radius:20px; padding:32px; border:1px solid #e2e8f0; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom:40px;">
+            <h3 style="margin: 0 0 20px 0; font-size: 1.15rem; color: #0f172a; font-weight:700;">Target Parameters</h3>
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+              ${adminSchoolSelect}
+              <select id="snapTargetClass" onchange="window.updateSnapDropdowns()" class="snap-pro-select">
+                ${classOpts}
+              </select>
+              <select id="snapTargetStudent" class="snap-pro-select" style="flex:2;">
+                <option value="">-- Select a Student Target --</option>
+              </select>
             </div>
-            <div class="td-body" id="tdBody"></div>
+            
+            <div style="display:flex; justify-content: flex-end; margin-top: 24px;">
+              <button onclick="window.fetchSingleStudentSnapshot()" class="snap-pro-btn">
+                Retrieve Telemetry 
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div id="singleStudentResultArea">
+             <div style="text-align:center; padding: 60px; color:#94a3b8; font-style:italic; font-weight:500;">Awaiting target selection...</div>
+          </div>
+        </div>
+        ${buildModalsHTML()}
+      `;
+
+      container.innerHTML = finalHtmlPayload;
+      try { localStorage.setItem(cacheKey, JSON.stringify({ metaMap: window.snapshotMetaMap, html: finalHtmlPayload })); } catch(e){}
+
+      window.updateSnapDropdowns = function() {
+        const selSchool = document.getElementById('snapTargetSchool');
+        const selClass = document.getElementById('snapTargetClass');
+        const selStudent = document.getElementById('snapTargetStudent');
+        
+        const schoolFilter = selSchool ? selSchool.value : 'all';
+        const classFilter = selClass ? selClass.value : 'all';
+
+        let filteredStudents = window.snapshotMetaMap.filter(s => {
+          const matchSchool = schoolFilter === 'all' || s.schoolId === schoolFilter;
+          const matchClass = classFilter === 'all' || s.class === classFilter;
+          return matchSchool && matchClass;
+        });
+
+        let opts = `<option value="">-- Select a Student Target (${filteredStudents.length} found) --</option>`;
+        filteredStudents.sort((a,b)=> a.name.localeCompare(b.name)).forEach(s => {
+           opts += `<option value="${s.id}">${safeStr(s.name)} (Class ${safeStr(s.class)})</option>`;
+        });
+        selStudent.innerHTML = opts;
+      };
+
+      window.updateSnapDropdowns();
+
+      window.fetchSingleStudentSnapshot = async function() {
+        const studentId = document.getElementById('snapTargetStudent').value;
+        const resultArea = document.getElementById('singleStudentResultArea');
+        if (!studentId) { alert("Please select a student target first."); return; }
+
+        resultArea.innerHTML = `<div style="text-align:center; padding: 60px; color: #3b82f6; font-weight:600; font-size:1.1rem;">Securely retrieving records... <span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span></div>`;
+        
+        try {
+          const { collection, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+
+          const [tasksSnap, taSnap] = await Promise.all([
+            getDocs(query(collection(window.snapshotDb, "tasks"), where("studentId", "==", studentId))),
+            getDocs(query(collection(window.snapshotDb, "tinkering_activities"), where("assignedTo", "==", studentId)))
+          ]);
+
+          let stTasks = []; let stMissions = [];
+          tasksSnap.forEach(doc => stTasks.push({ id: doc.id, ...doc.data() }));
+          taSnap.forEach(doc => stMissions.push({ id: doc.id, ...doc.data() }));
+
+          stTasks.sort((a, b) => getSortTime(b) - getSortTime(a));
+          stMissions.sort((a, b) => getSortTime(b) - getSortTime(a));
+
+          const targetStudent = window.snapshotMetaMap.find(s => s.id === studentId);
+          window.snapshotStudents[studentId] = { ...targetStudent, tasks: stTasks, missions: stMissions };
+
+          const totalTasks = stTasks.length;
+          const completedTasks = stTasks.filter(t => (t.status || '').toLowerCase() === 'completed').length;
+          const totalMissions = stMissions.length;
+          const completedMissions = stMissions.filter(m => (m.status || '').toLowerCase() === 'completed').length;
+          const totalItems = totalTasks + totalMissions;
+          const completedItems = completedTasks + completedMissions;
+          const progressPct = totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
+
+          let tasksHtml = '';
+          if (stTasks.length === 0) tasksHtml = `<div style="color:#94a3b8; font-style:italic; padding:20px; background:#f8fafc; border-radius:12px; text-align:center; font-weight:500;">No standard tasks assigned.</div>`;
+          stTasks.forEach(task => {
+            const status = (task.status || 'assigned').toLowerCase();
+            tasksHtml += `
+              <div class="tm-task-row" id="task-row-${task.id}" style="border-bottom: 1px solid #f1f5f9; padding: 16px 0; display:flex; justify-content:space-between; align-items:center;">
+                <div class="tm-task-info">
+                  <h4 onclick="window.openTaskDetailModal('${task.id}')" style="cursor:pointer; color:#0f172a; margin:0 0 6px 0; font-size:1.1rem;">${safeStr(task.title)}</h4>
+                  <span style="background:rgba(148,163,184,0.1); color:#64748b; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; text-transform:uppercase;">${status}</span>
+                  <span style="border:1px solid #e2e8f0; color:#64748b; padding:3px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; margin-left:8px;">Lvl: ${safeStr(task.difficulty || 'Beginner')}</span>
+                </div>
+                <div style="display:flex; gap:8px;">
+                  <button onclick="window.editTaskInline('${task.id}', '${studentId}')" style="background:#f1f5f9; color:#3b82f6; border:none; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer; transition:0.2s;">Manage</button>
+                  <button onclick="window.deleteTaskInline('${task.id}', '${studentId}')" style="background:#fef2f2; color:#ef4444; border:none; padding:8px 16px; border-radius:8px; font-weight:700; cursor:pointer; transition:0.2s;">Delete</button>
+                </div>
+              </div>`;
+          });
+
+          let taHtml = '';
+          if (stMissions.length === 0) taHtml = `<div style="color:#94a3b8; font-style:italic; padding:20px; background:#f8fafc; border-radius:12px; text-align:center; font-weight:500;">No missions deployed.</div>`;
+          stMissions.forEach(m => {
+            const status = (m.status || 'assigned').toLowerCase();
+            taHtml += `
+              <div class="tm-task-row" style="background:#f8fafc; border-left:4px solid #8b5cf6; padding: 16px; border-radius: 8px; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+                <div class="tm-task-info">
+                  <div style="font-size:0.75rem; color:#64748b; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">${safeStr(m.subject || 'Mission')}</div>
+                  <h4 onclick="window.openTADetailModal('${m.id}')" style="cursor:pointer; color:#0f172a; margin:4px 0; font-size:1.1rem;">${safeStr(m.activityName)}</h4>
+                  <span style="background:rgba(59,130,246,0.1); color:#3b82f6; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; text-transform:uppercase;">${status}</span>
+                </div>
+                <div class="tm-actions"><span style="font-size:0.85rem; color:#64748b; font-weight:600;">Grade via TA Reports ↗</span></div>
+              </div>`;
+          });
+
+          resultArea.innerHTML = `
+            <div style="background:#fff; border-radius:24px; padding:32px; border:1px solid #e2e8f0; box-shadow:0 4px 20px rgba(0,0,0,0.03); display:flex; align-items:center; gap:24px; margin-bottom:40px; animation: taFadeIn 0.4s ease-out;">
+              <div style="width:80px; height:80px; border-radius:50%; background:conic-gradient(from ${progressPct * 3.6}deg, #f1f5f9, #f1f5f9), conic-gradient(#4f46e5, #3b82f6); display:flex; justify-content:center; align-items:center; border: 8px solid #fff; box-shadow: 0 0 0 1px #e2e8f0;">
+                <div style="background:#fff; width:100%; height:100%; border-radius:50%; display:flex; justify-content:center; align-items:center; font-weight:800; font-size:1.2rem; color:#0f172a;">${progressPct}%</div>
+              </div>
+              <div>
+                <h3 style="margin:0 0 4px 0; font-size:1.5rem; color:#0f172a; font-weight:800;">${safeStr(targetStudent.name)}</h3>
+                <div style="color:#64748b; font-weight:600; font-size:1.05rem;">Class ${safeStr(targetStudent.class)} • ${completedItems} of ${totalItems} Master Logs Verified</div>
+              </div>
+            </div>
+            
+            <div style="display:flex; justify-content:center;">
+              <div class="snap-tab-container">
+                <button id="btn-tab-missions" class="snap-tab-btn ${window.activeSnapTab === 'tab-missions' ? 'active' : ''}" onclick="window.switchSnapshotTab('tab-missions')">Tinkering Activities (${stMissions.length})</button>
+                <button id="btn-tab-tasks" class="snap-tab-btn ${window.activeSnapTab === 'tab-tasks' ? 'active' : ''}" onclick="window.switchSnapshotTab('tab-tasks')">Standard Tasks (${stTasks.length})</button>
+              </div>
+            </div>
+
+            <div id="tab-missions" class="snap-tab-content" style="display: ${window.activeSnapTab === 'tab-missions' ? 'block' : 'none'};">
+              <div style="background:#fff; border-radius:20px; padding:20px; border:1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                ${taHtml}
+              </div>
+            </div>
+
+            <div id="tab-tasks" class="snap-tab-content" style="display: ${window.activeSnapTab === 'tab-tasks' ? 'block' : 'none'};">
+              <div style="background:#fff; border-radius:20px; padding:20px; border:1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                ${tasksHtml}
+              </div>
+            </div>
+          `;
+
+        } catch (e) {
+          console.error(e);
+          resultArea.innerHTML = `<div style="color:#ef4444; text-align:center; padding:40px; background:#fef2f2; border-radius:16px; border:1px solid #fca5a5;">System Error: Failed to retrieve telemetry records.</div>`;
+        }
+      };
+    }
+
+    // ========================================================================
+    // 🧠 GLOBAL TAB, MODAL & EDIT JAVASCRIPT
+    // ========================================================================
+    
+    // 🟢 TAB SWITCHER ENGINE
+    window.switchSnapshotTab = function(tabId) {
+      window.activeSnapTab = tabId; // Save state!
+      
+      // Hide all contents
+      document.querySelectorAll('.snap-tab-content').forEach(el => el.style.display = 'none');
+      // Reset all buttons
+      document.querySelectorAll('.snap-tab-btn').forEach(el => el.classList.remove('active'));
+      
+      // Show selected
+      const content = document.getElementById(tabId);
+      const btn = document.getElementById('btn-' + tabId);
+      
+      if (content) content.style.display = 'block';
+      if (btn) btn.classList.add('active');
+    };
+
+    function buildModalsHTML() {
+      return `
+        <div id="taskDetailOverlay" class="td-overlay" onclick="if(event.target===this) window.closeTaskDetailModal()">
+          <div class="td-modal" style="background:#fff; border-radius:24px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; max-width:600px; width:90%;">
+            <div style="padding: 24px 32px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+              <h3 id="tdTitle" style="margin:0; font-size:1.3rem; font-weight:800; color:#0f172a;">Loading...</h3>
+              <button onclick="window.closeTaskDetailModal()" style="background:#f1f5f9; border:none; width:36px; height:36px; border-radius:18px; cursor:pointer; color:#64748b; font-weight:bold; transition:0.2s;">✕</button>
+            </div>
+            <div id="tdBody" style="padding:32px; max-height: 70vh; overflow-y:auto;"></div>
           </div>
         </div>
       `;
-    } else {
-      let htmlContent = '';
-      for (const [schoolId, schoolData] of Object.entries(dataArchitecture)) {
-        const studentKeys = Object.keys(schoolData.students);
-        if (studentKeys.length === 0) continue; 
-
-        let schoolTotalItems = 0; let schoolCompletedItems = 0; let studentsHTML = '';
-        
-        studentKeys.forEach(studentId => {
-          const student = schoolData.students[studentId];
-          const totalTasks = student.tasks.length;
-          const completedTasks = student.tasks.filter(t => (t.status || '').toLowerCase() === 'completed').length;
-          const totalMissions = student.missions.length;
-          const completedMissions = student.missions.filter(m => (m.status || '').toLowerCase() === 'completed').length;
-          
-          const totalItems = totalTasks + totalMissions;
-          const completedItems = completedTasks + completedMissions;
-
-          schoolTotalItems += totalItems; schoolCompletedItems += completedItems;
-
-          const progressPct = totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
-          const avatarLetter = safeStr(student.name).charAt(0).toUpperCase();
-          const searchStr = `${student.name} ${student.email}`.toLowerCase();
-          let statusCategory = progressPct === 0 ? 'not_started' : (progressPct === 100 ? 'completed' : 'in_progress');
-
-          let tasksPreviewHTML = '';
-          const combinedList = [...student.tasks, ...student.missions];
-          
-          if (combinedList.length === 0) {
-            tasksPreviewHTML = `<div class="snap-no-tasks" style="color:#94a3b8; font-size:0.85rem; font-style:italic;">No tasks or missions assigned</div>`;
-            statusCategory = 'no_tasks';
-          } else {
-            combinedList.slice(0, 3).forEach(item => {
-              const isMission = !!item.activityName; 
-              const title = isMission ? `[TA] ${item.activityName}` : item.title;
-              const status = (item.status || 'assigned').toLowerCase();
-              let statusColor = '#cbd5e1'; 
-              if (status === 'completed') statusColor = '#10b981'; 
-              if (status === 'in progress' || status === 'submitted') statusColor = '#3b82f6'; 
-              tasksPreviewHTML += `<div class="snap-task-item"><div class="snap-task-dot" style="background-color: ${statusColor};"></div><div class="snap-task-title">${safeStr(title || 'Untitled')}</div></div>`;
-            });
-            if (combinedList.length > 3) tasksPreviewHTML += `<div style="font-size:0.75rem; color:#64748b; margin-top:6px; font-weight:600;">+ ${combinedList.length - 3} more items</div>`;
-          }
-
-          studentsHTML += `
-            <div class="snap-student-card" data-search="${searchStr}" data-status="${statusCategory}" onclick="window.openStudentTaskModal(event, '${studentId}')">
-              <div class="snap-student-header">
-                <div class="snap-avatar">${avatarLetter}</div>
-                <div style="flex:1;">
-                  <div class="snap-student-name">${safeStr(student.name)}</div>
-                  <div class="snap-student-meta">${totalTasks} Tasks • ${totalMissions} TAs</div>
-                </div>
-                <div style="font-weight:800; font-size:1.1rem; color:#1c1c1e;">${progressPct}%</div>
-              </div>
-              <div class="snap-progress-track" style="margin-top:12px;">
-                <div class="snap-progress-fill" style="width: ${progressPct}%;"></div>
-              </div>
-              <div class="snap-task-list" style="margin-top:16px;">${tasksPreviewHTML}</div>
-            </div>`;
-        });
-
-        const schoolProgress = schoolTotalItems === 0 ? 0 : Math.round((schoolCompletedItems / schoolTotalItems) * 100);
-        htmlContent += `
-          <div class="snap-school-block" data-school="${schoolId}">
-            <div class="snap-school-trigger" onclick="this.parentElement.classList.toggle('active')">
-              <div class="snap-school-info">
-                <h3>${safeStr(schoolData.schoolName)}</h3>
-                <span class="snap-school-badge">${studentKeys.length} Students Enrolled</span></div>
-              <div class="snap-school-metrics">
-                <div class="snap-metric"><span class="snap-metric-val">${schoolProgress}%</span><span class="snap-metric-lbl">Overall Completion</span></div>
-                <div class="snap-arrow"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div>
-              </div>
-            </div>
-            <div class="snap-school-content"><div class="snap-school-content-inner"><div class="snap-student-grid">${studentsHTML}</div></div></div>
-          </div>`;
-      }
-      
-      if (!htmlContent) htmlContent = `<div style="text-align:center; padding: 60px; color:#71717a; font-weight:600;">No student data available.</div>`;
-
-      finalHtmlPayload = `
-        ${typeof csss !== 'undefined' ? csss : ''} 
-        <div class="snap-theme-container">
-          <div class="snap-header">
-            <h2 style="display:inline-block; margin-right:10px;">Innovator Telemetry</h2>
-            <p>${restrictedSchoolId ? "Task & Mission progression for your laboratory." : "Task & Mission progression across all institutions."}</p>
-          </div>
-
-          <div class="snap-controls">
-            <div class="snap-search-wrap">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              <input type="text" id="snapGlobalSearch" class="snap-search" placeholder="Search by student name or email..." onkeyup="window.filterSnapshot()">
-            </div>
-            <select id="snapFilterSchool" class="snap-filter" onchange="window.filterSnapshot()" style="display: ${restrictedSchoolId ? 'none' : 'block'};">
-              ${schoolFilterOptions}
-            </select>
-            <select id="snapFilterProgress" class="snap-filter" onchange="window.filterSnapshot()">
-              <option value="all">All Progress Statuses</option>
-              <option value="completed">100% Completed</option>
-              <option value="in_progress">In Progress (1-99%)</option>
-              <option value="not_started">Not Started (0%)</option>
-              <option value="no_tasks">No Assignments</option>
-            </select>
-          </div>
-          <div id="snapshotAccordionContainer">${htmlContent}</div>
-        </div>
-
-        <div class="tm-backdrop" id="taskModalBackdrop" onclick="if(event.target===this) window.closeStudentTaskModal()">
-          <div class="tm-modal" id="taskModalContent" style="max-width: 700px;">
-            <div class="tm-header">
-              <div>
-                <div style="font-size: 0.8rem; color: #8b5cf6; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Telemetry Manager</div>
-                <h3 id="tmStudentName" style="margin:0; font-size:1.8rem;">Loading...</h3>
-              </div>
-              <button class="tm-close" onclick="window.closeStudentTaskModal()">✕</button>
-            </div>
-            <div class="tm-body" id="tmBody" style="padding: 24px;"></div>
-          </div>
-        </div>
-
-        <div id="taskDetailOverlay" class="td-overlay" onclick="if(event.target===this) window.closeTaskDetailModal()">
-          <div class="td-modal">
-            <div class="td-header">
-              <h3 id="tdTitle" style="margin:0; font-size:1.4rem; font-weight:800; color:#1c1c1e; letter-spacing: -0.02em;">Loading...</h3>
-              <button class="tm-close" onclick="window.closeTaskDetailModal()">✕</button>
-            </div><div class="td-body" id="tdBody"></div></div></div>`;}
-    container.innerHTML = finalHtmlPayload;
-    try {
-      localStorage.setItem(cacheKey, JSON.stringify({
-        students: window.snapshotStudents,
-        studentList: window.allStudentsList,
-        html: finalHtmlPayload}));
-    } catch(e) { console.warn("Local storage full, caching skipped."); }
-    window.filterSnapshot = function() {
-      const searchInput = document.getElementById("snapGlobalSearch").value.toLowerCase();
-      const schoolFilter = document.getElementById("snapFilterSchool").value;
-      const progressFilter = document.getElementById("snapFilterProgress").value;
-      const schoolBlocks = document.querySelectorAll(".snap-school-block");
-      schoolBlocks.forEach(block => {
-        const blockSchoolId = block.getAttribute("data-school");
-        let hasVisibleStudents = false;
-        if (schoolFilter !== 'all' && blockSchoolId !== schoolFilter) { block.style.display = 'none'; return; }
-        const studentCards = block.querySelectorAll(".snap-student-card");
-        studentCards.forEach(card => {
-          const matchesSearch = card.getAttribute("data-search").includes(searchInput);
-          const matchesProgress = progressFilter === 'all' || card.getAttribute("data-status") === progressFilter;
-          if (matchesSearch && matchesProgress) { card.style.display = 'block'; hasVisibleStudents = true; } 
-          else { card.style.display = 'none'; }});
-        if (hasVisibleStudents) {
-          block.style.display = 'block';
-          if (searchInput.length > 0 || progressFilter !== 'all') block.classList.add('active'); 
-        } else { block.style.display = 'none'; }});};    
-    window.openStudentTaskModal = function(event, studentId) {
-      event.stopPropagation(); 
-      const backdrop = document.getElementById('taskModalBackdrop');
-      const student = window.snapshotStudents[studentId];
-      document.getElementById('tmStudentName').innerText = student.name;
-      window.renderTaskModalBody(studentId);
-      document.body.classList.add("modal-active-body");
-      backdrop.classList.add('active');};  
-    window.closeStudentTaskModal = function() {
-      document.getElementById('taskModalBackdrop').classList.remove('active');
-      document.body.classList.remove("modal-active-body");};   
-    window.renderTaskModalBody = function(studentId) {
-      const student = window.snapshotStudents[studentId]; 
-      const body = document.getElementById('tmBody');
-      let html = `<h4 style="font-size: 1.1rem; color: #1c1c1e; margin: 0 0 16px 0; border-bottom: 2px solid #f2f2f7; padding-bottom: 8px;">Tinkering Activities (TA)</h4>`;
-      if (!student.missions || student.missions.length === 0) { html += `<div style="color:#a1a1aa; padding:10px 0 20px 0; font-style:italic;">No missions assigned.</div>`; } 
-      else {student.missions.forEach(m => {
-          const status = (m.status || 'assigned').toLowerCase();
-          let badgeClass = status === 'submitted' ? 'badge-progress' : (status === 'completed' ? 'badge-completed' : 'badge-assigned');
-          html += `<div class="tm-task-row" style="background:#f8f9fa; border-left:4px solid #8b5cf6;">
-              <div class="tm-task-info">
-                <div style="font-size:0.75rem; color:#8e8e93; font-weight:800; text-transform:uppercase;">${m.subject || 'Mission'}</div>
-                <h4 onclick="window.openTADetailModal('${m.id}')" title="Click to view mission details" style="cursor:pointer; color:#1c1c1e;">${safeStr(m.activityName)}</h4>
-                <span class="tm-badge ${badgeClass}">${status}</span>
-              </div>
-              <div class="tm-actions"><span style="font-size:0.8rem; color:#8e8e93; font-weight:600;">Grade via TA Reports</span></div>
-            </div>`;});}
-      html += `<h4 style="font-size: 1.1rem; color: #1c1c1e; margin: 24px 0 16px 0; border-bottom: 2px solid #f2f2f7; padding-bottom: 8px;">Standard Tasks</h4>`;
-      if (!student.tasks || student.tasks.length === 0) { html += `<div style="color:#a1a1aa; padding:10px 0; font-style:italic;">No standard tasks assigned.</div>`; } 
-      else {
-        student.tasks.forEach(task => {
-          const status = (task.status || 'assigned').toLowerCase();
-          let badgeClass = status === 'in progress' ? 'badge-progress' : (status === 'completed' ? 'badge-completed' : 'badge-assigned');
-          html += `
-            <div class="tm-task-row" id="task-row-${task.id}">
-              <div class="tm-task-info">
-                <h4 onclick="window.openTaskDetailModal('${task.id}')" title="Click to view details">${safeStr(task.title)}</h4>
-                <span class="tm-badge ${badgeClass}">${status}</span>
-                <span class="tm-badge badge-diff">Level: ${safeStr(task.difficulty || 'Beginner')}</span>
-              </div>
-              <div class="tm-actions">
-                <button class="tm-btn tm-btn-edit" onclick="window.editTaskInline('${task.id}', '${studentId}')">Edit</button>
-                <button class="tm-btn tm-btn-del" onclick="window.deleteTaskInline('${task.id}', '${studentId}')">Delete</button>
-              </div>
-            </div>`;
-        });
-      }
-      body.innerHTML = html;
-    };
+    }
 
     window.openTADetailModal = async function(taId) {
       const overlay = document.getElementById("taskDetailOverlay"); 
@@ -1505,41 +1549,43 @@ export async function loadStudentRegistration(db, contentArea) {
       const bodyEl = document.getElementById("tdBody");
       if (!overlay) return;
       
-      titleEl.innerText = "Loading TA...";
-      bodyEl.innerHTML = "<div style='text-align:center; color:#888; padding:40px; font-weight:600;'>Fetching secure data...</div>";
+      titleEl.innerText = "Mission Dossier";
+      bodyEl.innerHTML = `<div style="text-align:center; color:#64748b; font-weight:600; padding:40px;">Decrypting Dossier...</div>`;
       document.body.classList.add("modal-active-body");
       overlay.classList.add("active");
 
       try {
         const taSnap = await window.snapshotGetDoc(window.snapshotDocRef(window.snapshotDb, "tinkering_activities", taId));
-        if (!taSnap.exists()) { bodyEl.innerHTML = "TA not found."; return; }
-        
+        if (!taSnap.exists()) { bodyEl.innerHTML = "Mission not found."; return; }
         const ta = taSnap.data();
         const status = (ta.status || 'assigned').toLowerCase();
-        titleEl.innerText = ta.activityName || "Untitled TA";
-        let statusColor = status === 'completed' ? '#34c759' : (status === 'submitted' ? '#007aff' : '#8e8e93');
+        titleEl.innerText = ta.activityName || "Untitled Mission";
+        let statusColor = status === 'completed' ? '#10b981' : (status === 'submitted' ? '#3b82f6' : '#64748b');
+
         bodyEl.innerHTML = `
           <div style="display:flex; gap:32px; margin-bottom:24px; padding-bottom:24px; border-bottom:1px solid #f1f5f9;">
-            <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase;">Domain</strong><div style="font-weight:800; font-size:1.1rem; color:#0f172a; margin-top:6px;">${ta.subject || "N/A"}</div></div>
-            <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase;">System ID</strong><div style="font-weight:800; font-size:1.1rem; color:#0f172a; margin-top:6px;">${ta.activityId || taId.substring(0,6)}</div></div>
-            <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase;">Status</strong><div style="font-weight:800; font-size:1.1rem; color:${statusColor}; margin-top:6px; text-transform:capitalize;">${status}</div></div>
+            <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">Domain</strong><div style="font-weight:800; font-size:1.1rem; color:#0f172a; margin-top:6px;">${safeStr(ta.subject || "N/A")}</div></div>
+            <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">System ID</strong><div style="font-weight:800; font-size:1.1rem; color:#0f172a; margin-top:6px;">${ta.activityId || taId.substring(0,6)}</div></div>
+            <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">Status</strong><div style="font-weight:800; font-size:1.1rem; color:${statusColor}; margin-top:6px; text-transform:capitalize;">${status}</div></div>
           </div>
-          <div style="background:#f8fafc; padding:24px; border-radius:20px; border:1px solid #f1f5f9; margin-bottom:24px;">
+          <div style="background:#f8fafc; padding:24px; border-radius:16px; border:1px solid #f1f5f9; margin-bottom:24px;">
             <strong style="font-size:0.85rem; color:#64748b; text-transform:uppercase;">Mission Blueprint</strong>
-            <div style="margin-top:12px; font-size:1rem; line-height:1.7; color:#334155; font-weight:500;">${ta.introduction || "No introduction provided."}</div>
+            <div style="margin-top:12px; font-size:1.05rem; line-height:1.7; color:#334155; font-weight:500;">${ta.introduction || "No details provided."}</div>
           </div>
           <h4 style="font-size: 0.85rem; color: #64748b; text-transform: uppercase; margin-bottom: 12px;">Telemetry Notes</h4>
-          ${ta.studentNotes ? `<div style="background: #fff8e6; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 0 12px 12px 0; color: #3a3a3c; font-size: 1.05rem; line-height: 1.6; margin-bottom: 24px; font-style: italic;">"${ta.studentNotes}"</div>` : `<div style="color: #94a3b8; font-style: italic; margin-bottom: 24px; padding: 16px; background: #f1f5f9; border-radius: 16px; text-align: center; font-weight: 600;">No field notes logged.</div>`}
-          ${ta.submissionURL ? `<a href="${ta.submissionURL}" target="_blank" style="display:block; text-align:center; background:linear-gradient(135deg, #007aff, #005bb5); color:white; padding:16px; border-radius:16px; font-weight:800; text-decoration:none;">🔗 View Mission Evidence ↗</a>` : `<div style="text-align:center; padding:16px; background:#f1f5f9; color:#94a3b8; border-radius:16px; font-weight:700; font-style:italic;">No evidence link submitted</div>`}
-        `;} catch(e) { bodyEl.innerHTML = "Error loading TA data."; }};
+          ${ta.studentNotes ? `<div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 0 12px 12px 0; color: #78350f; font-size: 1.05rem; line-height: 1.6; margin-bottom: 24px; font-style: italic; font-weight:500;">"${ta.studentNotes}"</div>` : `<div style="color: #94a3b8; font-style: italic; margin-bottom: 24px; padding: 16px; background: #f8fafc; border-radius: 12px; text-align: center; font-weight: 500;">No field notes logged.</div>`}
+          ${ta.submissionURL ? `<a href="${ta.submissionURL}" target="_blank" style="display:block; text-align:center; background:linear-gradient(135deg, #4f46e5, #3b82f6); color:white; padding:16px; border-radius:12px; font-weight:800; text-decoration:none; box-shadow:0 4px 12px rgba(59,130,246,0.3);">🔗 View Mission Evidence ↗</a>` : `<div style="text-align:center; padding:16px; background:#f8fafc; color:#64748b; border-radius:12px; font-weight:700; font-style:italic;">No evidence link submitted</div>`}
+        `;
+      } catch(e) { bodyEl.innerHTML = "Error loading data."; }
+    };
       
     window.openTaskDetailModal = async function(taskId) {
       const overlay = document.getElementById("taskDetailOverlay");
       const titleEl = document.getElementById("tdTitle");
       const bodyEl = document.getElementById("tdBody");
       if (!overlay) return;
-      titleEl.innerText = "Loading...";
-      bodyEl.innerHTML = "<div style='text-align:center; color:#888; padding:40px; font-weight:600;'>Fetching secure data...</div>";
+      titleEl.innerText = "Task Dossier";
+      bodyEl.innerHTML = `<div style="text-align:center; color:#64748b; font-weight:600; padding:40px;">Decrypting Dossier...</div>`;
       document.body.classList.add("modal-active-body");
       overlay.classList.add("active");
       try {
@@ -1552,68 +1598,70 @@ export async function loadStudentRegistration(db, contentArea) {
           <div style="display:flex; gap:32px; margin-bottom:24px; padding-bottom:24px; border-bottom:1px solid #f1f5f9;">
             <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase;">Due Date</strong><div style="font-weight:800; font-size:1.1rem; color:#ef4444; margin-top:6px;">${task.dueDate || "N/A"}</div></div>
             <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase;">Priority</strong><div style="font-weight:800; font-size:1.1rem; color:#0f172a; margin-top:6px;">${task.priority || "Medium"}</div></div>
-            <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase;">Difficulty</strong><div style="font-weight:800; font-size:1.1rem; color:#0f172a; margin-top:6px;">${task.difficulty || "Standard"}</div></div>
+            <div><strong style="color:#64748b; font-size:0.8rem; text-transform:uppercase;">Difficulty</strong><div style="font-weight:800; font-size:1.1rem; color:#3b82f6; margin-top:6px;">${task.difficulty || "Standard"}</div></div>
           </div>
           <div style="margin-bottom:32px;">
-            <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:800; text-transform:uppercase;"><span style="color:#64748b;">Completion</span><span style="color:#4361ee;">${progress}%</span></div>
-            <div class="td-progress-wrap"><div id="tdFill" class="td-progress-fill" data-percent="${progress}"></div></div>
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:800; text-transform:uppercase; margin-bottom:8px;"><span style="color:#64748b;">Completion</span><span style="color:#3b82f6;">${progress}%</span></div>
+            <div style="width:100%; background:#f1f5f9; border-radius:10px; height:12px; overflow:hidden;"><div style="width:${progress}%; background:#3b82f6; height:100%; border-radius:10px; transition:width 1s ease;"></div></div>
           </div>
-          <div style="background:#f8fafc; padding:24px; border-radius:20px; border:1px solid #f1f5f9; margin-bottom:32px;">
+          <div style="background:#f8fafc; padding:24px; border-radius:16px; border:1px solid #f1f5f9; margin-bottom:32px;">
             <strong style="font-size:0.85rem; color:#64748b; text-transform:uppercase;">Task Blueprint</strong>
-            <div style="margin-top:12px; font-size:1rem; line-height:1.7; color:#334155; font-weight:500;">${task.description || "No description provided."}</div>
+            <div style="margin-top:12px; font-size:1.05rem; line-height:1.7; color:#334155; font-weight:500;">${task.description || "No description provided."}</div>
           </div>
-          ${task.submissionURL ? `<a href="${task.submissionURL}" target="_blank" style="display:block; text-align:center; background:linear-gradient(135deg, #4361ee, #3a0ca3); color:white; padding:16px; border-radius:16px; font-weight:800; text-decoration:none;">View Student Submission ↗</a>` : `<div style="text-align:center; padding:16px; background:#f1f5f9; color:#94a3b8; border-radius:16px; font-weight:700; font-style:italic;">No file submitted yet</div>`}`;
-        setTimeout(() => { const fill = document.getElementById("tdFill"); if(fill) fill.style.width = fill.getAttribute("data-percent") + "%"; }, 100);
-      } catch(e) { bodyEl.innerHTML = "Error loading task data."; }};
+          ${task.submissionURL ? `<a href="${task.submissionURL}" target="_blank" style="display:block; text-align:center; background:linear-gradient(135deg, #4f46e5, #3b82f6); color:white; padding:16px; border-radius:12px; font-weight:800; text-decoration:none; box-shadow:0 4px 12px rgba(59,130,246,0.3);">View Submitted Files ↗</a>` : `<div style="text-align:center; padding:16px; background:#f8fafc; color:#64748b; border-radius:12px; font-weight:700; font-style:italic;">No file submitted yet</div>`}`;
+      } catch(e) { bodyEl.innerHTML = "Error loading task data."; }
+    };
+    
     window.closeTaskDetailModal = function() {
       const overlay = document.getElementById("taskDetailOverlay");
       if (overlay) {
         overlay.classList.remove("active");
-        if (document.getElementById('taskModalBackdrop') && !document.getElementById('taskModalBackdrop').classList.contains('active')) document.body.classList.remove("modal-active-body");
+        document.body.classList.remove("modal-active-body");
       }
     };
 
-    // ⚡ CACHE INVALIDATION ON EDIT/DELETE
+    // ⚡ INLINE EDIT & DELETE
     window.deleteTaskInline = async function(taskId, studentId) {
       if (!confirm("Delete this task permanently?")) return;
       const row = document.getElementById(`task-row-${taskId}`);
-      row.style.opacity = '0.5'; row.style.pointerEvents = 'none';
-
+      row.style.opacity = '0.4'; row.style.pointerEvents = 'none';
       try {
         await deleteDoc(doc(db, "tasks", taskId));
-        window.forceSnapshotRefresh = true; // Tell the system to fetch fresh data next time!
-        window.snapshotStudents[studentId].tasks = window.snapshotStudents[studentId].tasks.filter(t => t.id !== taskId);
-        row.style.transform = 'scale(0.9)';
-        setTimeout(() => window.renderTaskModalBody(studentId), 300);
+        window.forceSnapshotRefresh = true; 
+        window.fetchSingleStudentSnapshot(); 
       } catch (err) { alert("Failed to delete."); row.style.opacity = '1'; row.style.pointerEvents = 'auto'; }
     };
         
     window.editTaskInline = function(taskId, studentId) {
       const task = window.snapshotStudents[studentId].tasks.find(t => t.id === taskId);
       const row = document.getElementById(`task-row-${taskId}`);
+      
       let studentOptions = '';
-      window.allStudentsList.forEach(s => { studentOptions += `<option value="${s.id}" ${s.id === studentId ? 'selected' : ''}>${safeStr(s.name)}</option>`; });
+      if (window.snapshotMetaMap) {
+         window.snapshotMetaMap.forEach(s => { studentOptions += `<option value="${s.id}" ${s.id === studentId ? 'selected' : ''}>${safeStr(s.name)}</option>`; });
+      }
+
       const st = (task.status || 'assigned').toLowerCase();
       const diff = (task.difficulty || 'Beginner').toLowerCase();
 
       row.innerHTML = `
-        <div class="tm-edit-grid">
-          <input type="text" class="tm-input" id="edit-title-${taskId}" value="${safeStr(task.title)}">
-          <select class="tm-input" id="edit-status-${taskId}">
+        <div style="width:100%; display:grid; grid-template-columns: 1fr 1fr; gap:12px; padding:16px; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
+          <input type="text" id="edit-title-${taskId}" value="${safeStr(task.title)}" style="grid-column: 1 / -1; padding: 12px 16px; border-radius:8px; border:1px solid #cbd5e1; outline:none; font-family:inherit; font-size:1rem;">
+          <select id="edit-status-${taskId}" style="padding:12px 16px; border-radius:8px; border:1px solid #cbd5e1; outline:none; font-family:inherit;">
             <option value="assigned" ${st === 'assigned' ? 'selected' : ''}>Assigned</option>
             <option value="in progress" ${st === 'in progress' ? 'selected' : ''}>In Progress</option>
             <option value="completed" ${st === 'completed' ? 'selected' : ''}>Completed</option>
           </select>
-          <select class="tm-input" id="edit-diff-${taskId}">
+          <select id="edit-diff-${taskId}" style="padding:12px 16px; border-radius:8px; border:1px solid #cbd5e1; outline:none; font-family:inherit;">
             <option value="Beginner" ${diff === 'beginner' ? 'selected' : ''}>Beginner</option>
             <option value="Intermediate" ${diff === 'intermediate' ? 'selected' : ''}>Intermediate</option>
             <option value="Advanced" ${diff === 'advanced' ? 'selected' : ''}>Advanced</option>
             <option value="Expert" ${diff === 'expert' ? 'selected' : ''}>Expert</option>
           </select>
-          <select class="tm-input" id="edit-student-${taskId}">${studentOptions}</select>
-          <div style="display:flex; gap:8px;">
-            <button class="tm-btn" style="background:#10b981; color:white;" onclick="window.saveTaskInline('${taskId}', '${studentId}')">Save</button>
-            <button class="tm-btn" style="background:#e2e8f0; color:#475569;" onclick="window.renderTaskModalBody('${studentId}')">Cancel</button>
+          <select id="edit-student-${taskId}" style="grid-column: 1 / -1; padding:12px 16px; border-radius:8px; border:1px solid #cbd5e1; outline:none; font-family:inherit;">${studentOptions}</select>
+          <div style="grid-column: 1 / -1; display:flex; gap:12px; margin-top:8px;">
+            <button onclick="window.saveTaskInline('${taskId}', '${studentId}')" style="flex:1; background:#10b981; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer;">Save</button>
+            <button onclick="window.fetchSingleStudentSnapshot()" style="flex:1; background:#e2e8f0; color:#475569; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer;">Cancel</button>
           </div>
         </div>`;
     };
@@ -1623,21 +1671,10 @@ export async function loadStudentRegistration(db, contentArea) {
       const newStatus = document.getElementById(`edit-status-${taskId}`).value;
       const newDiff = document.getElementById(`edit-diff-${taskId}`).value;
       const newStudentId = document.getElementById(`edit-student-${taskId}`).value;
-
       try {
         await updateDoc(doc(db, "tasks", taskId), { title: newTitle, status: newStatus, difficulty: newDiff, studentId: newStudentId });
-        window.forceSnapshotRefresh = true; // system to fetch fresh data next time!
-
-        if (oldStudentId !== newStudentId) {
-          const taskIndex = window.snapshotStudents[oldStudentId].tasks.findIndex(t => t.id === taskId);
-          const taskObj = window.snapshotStudents[oldStudentId].tasks.splice(taskIndex, 1)[0];
-          taskObj.title = newTitle; taskObj.status = newStatus; taskObj.difficulty = newDiff; taskObj.studentId = newStudentId;
-          if (window.snapshotStudents[newStudentId]) window.snapshotStudents[newStudentId].tasks.push(taskObj);
-        } else {
-          const task = window.snapshotStudents[oldStudentId].tasks.find(t => t.id === taskId);
-          task.title = newTitle; task.status = newStatus; task.difficulty = newDiff;
-        }
-        window.renderTaskModalBody(oldStudentId);
+        window.forceSnapshotRefresh = true; 
+        window.fetchSingleStudentSnapshot(); 
       } catch (err) { alert("Failed to update task."); }
     };
 
@@ -1689,8 +1726,6 @@ export function setupAdminTaskDetailDrawer(dbInstance) {
     const bodyEl = document.getElementById("atBody");
 
     if (!backdrop || !drawer) return;
-
-    // Show loading state
     titleEl.textContent = "Fetching Data...";
     bodyEl.innerHTML = `<div style="text-align:center; color:#888; margin-top:40px;">Scanning secure database... ⏳</div>`;
     backdrop.classList.add("active");
@@ -1723,7 +1758,7 @@ export function setupAdminTaskDetailDrawer(dbInstance) {
           <div class="at-prog-track"><div id="atFill" class="at-prog-fill" data-percent="${progress}"></div></div>
         </div>
         <div style="margin-bottom: 32px; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
-          <strong style="font-size:0.85rem; color:#71717a; text-transform:uppercase;">Description & Blueprint</strong>
+          <strong style="font-size:0.85rem; color:#71717a; text-transform:uppercase;">Description & TA</strong>
           <div style="margin-top: 10px; font-size: 0.95rem; color: #3f3f46; line-height: 1.6;">${task.description || "No description available."}</div>
         </div>
         ${task.submissionURL ? `<div style="margin-bottom: 32px;"><a href="${task.submissionURL}" target="_blank" style="display:flex; justify-content:center; align-items:center; gap:8px; padding:14px 20px; background:#3b82f6; color:white; font-weight:700; text-decoration:none; border-radius:12px; transition:0.2s; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">📄 View Student Submission</a></div>` : `<div style="margin-bottom: 32px; padding:14px; text-align:center; background:#f4f4f5; border-radius:12px; color:#a1a1aa; font-weight:600; font-style:italic;">No file submitted yet.</div>`}

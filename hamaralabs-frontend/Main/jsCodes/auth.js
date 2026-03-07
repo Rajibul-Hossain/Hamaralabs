@@ -84,65 +84,44 @@ async function createUserDocument(user, role, formData) {
   const snap = await getDoc(userRef);
   if (snap.exists()) return;
   let payload = { 
-    name: formData.name || user.displayName || "", 
-    email: user.email || "", 
-    role: role, 
-    approvalStatus: role === "student" ? "approved" : "pending", 
-    createdAt: serverTimestamp()};
-  if (role === "admin" || role === "super-admin") {
-    payload.approvalStatus = "approved";}
+    name: formData.name || user.displayName || "", email: user.email || "", role: role, approvalStatus: role === "student" ? "approved" : "pending", createdAt: serverTimestamp()};
+  if (role === "admin" || role === "super-admin") {payload.approvalStatus = "approved";}
   if (role === "student" || role === "mentor" || role === "atl-incharge" || role === "school-admin") {
     const schoolId = await ensureSchoolExists(formData.schoolName); 
     payload.schoolId = schoolId; 
-    if (role === "mentor") {
-      await createMentorAssignment(user.uid, schoolId);
-    } else if (role === "atl-incharge") {
+    if (role === "mentor") {await createMentorAssignment(user.uid, schoolId);} else if (role === "atl-incharge") {
       await createInchargeAssignment(user.uid, schoolId);}}
   await setDoc(userRef, payload);}
-if (emailGroup) {
-  const registerBtn = emailGroup.querySelector(".primary-btn");
+if (emailGroup) {const registerBtn = emailGroup.querySelector(".primary-btn");
   registerBtn.addEventListener("click", async () => {
     const email = emailGroup.querySelector('input[type="email"]').value.trim();
     const password = emailGroup.querySelector('input[type="password"]').value;
     if (!email || !password) {return showFeedback("Enter email and password");}
-    try {
-      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+    try {const { user } = await createUserWithEmailAndPassword(auth, email, password);
       let formData = {};
       dynamicFields.querySelectorAll("input").forEach(input => {formData[input.id] = input.value.trim();});
       await createUserDocument(user, selectedRole, formData);
       showFeedback("Registration Successful", false);
       setTimeout(() => redirectToDashboard(), 600);
-    } catch (error) {
-      showFeedback(error.message);
-    }
-  });
-}
-
-if (phoneGroup) {
-  const loginBtn = phoneGroup.querySelector(".primary-btn");
+    } catch (error) {showFeedback(error.message);}});}
+if (phoneGroup) {const loginBtn = phoneGroup.querySelector(".primary-btn");
   loginBtn.addEventListener("click", async () => {
     const email = phoneGroup.querySelector('input[type="email"]').value.trim();
     const password = phoneGroup.querySelector('input[type="password"]').value;
     if (!email || !password) {return showFeedback("Enter email and password");}
-    try {
-      const { user } = await signInWithEmailAndPassword(auth, email, password);
+    try {const { user } = await signInWithEmailAndPassword(auth, email, password);
       const userSnap = await getDoc(doc(db, "users", user.uid));
       if (!userSnap.exists()) {return showFeedback("Profile not found");}
       const data = userSnap.data();
       if (data.approvalStatus === "pending") {return showFeedback("Account pending approval");}
       showFeedback("Login Successful", false);
       setTimeout(() => redirectToDashboard(), 600);
-    } catch (error) {
-      showFeedback(error.message);}});
-}
-if (googleBtn) {
-  googleBtn.addEventListener("click", async () => {
+    } catch (error) {showFeedback(error.message);}});}
+if (googleBtn) {googleBtn.addEventListener("click", async () => {
     const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider); 
+    try {const result = await signInWithPopup(auth, provider); 
       const user = result.user;
       await createUserDocument(user, selectedRole, {});
       showFeedback("Google Login Successful", false);
       setTimeout(() => redirectToDashboard(), 600);
-    } catch (error) {showFeedback(error.message); }});
-}
+    } catch (error) {showFeedback(error.message); }});}

@@ -298,7 +298,7 @@ window.openStudentTAModal = function(taId) {
       const status = data.status || 'assigned';
       let actionAreaHtml = '';
       if (status === 'completed') {actionAreaHtml = `<div style="background: rgba(52, 199, 89, 0.1); border: 1px solid rgba(52, 199, 89, 0.2); border-radius: 24px; padding: 24px; text-align: center;">
-            <div style="font-size: 2rem; margin-bottom: 8px;">🏆</div><h4 style="color: #28a745; margin: 0 0 8px 0; font-size: 1.2rem;">Mission Accomplished</h4>
+            <div style="font-size: 2rem; margin-bottom: 8px;">🏆</div><h4 style="color: #28a745; margin: 0 0 8px 0; font-size: 1.2rem;">TA submitted </h4>
             <p style="color: #28a745; opacity: 0.8; margin: 0; font-weight: 500;">Your ATL Incharge has verified this activity.</p></div>`;
       } else if (status === 'submitted') {
         actionAreaHtml = `<div style="background: rgba(0, 122, 255, 0.08); border: 1px solid rgba(0, 122, 255, 0.15); border-radius: 24px; padding: 24px; text-align: center;">
@@ -308,7 +308,7 @@ window.openStudentTAModal = function(taId) {
       } else {actionAreaHtml = `<div id="stu-submit-trigger-${taId}">
             <button onclick="document.getElementById('stu-submit-trigger-${taId}').style.display='none'; document.getElementById('stu-submit-form-${taId}').style.display='block';" 
                     style="background: linear-gradient(135deg, #007aff, #005bb5); color: #fff; border: none; border-radius: 100px; padding: 20px 60px; font-size: 1.15rem; font-weight: 800; cursor: pointer; box-shadow: 0 20px 40px rgba(0, 122, 255, 0.3); transition: transform 0.3s ease; width: 100%;">
-              Log Mission Results 🚀</button></div>
+              Submit 🚀</button></div>
           <div id="stu-submit-form-${taId}" style="display: none; background: #f9f9fb; border-radius: 28px; padding: 32px; border: 1px solid rgba(0,0,0,0.05); animation: stuFadeUp 0.4s ease;">
             <h4 style="font-size: 1.2rem; color: #1c1c1e; margin: 0 0 16px 0; font-weight: 800;">Upload Telemetry</h4>
             <label style="display:block; font-size: 0.9rem; font-weight: 700; color: #8e8e93; margin-bottom: 8px;">Project Evidence (Drive/Video Link)</label>
