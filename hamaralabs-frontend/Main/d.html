@@ -36,5 +36,11 @@ a, button, input, select, textarea, label {transition: all 0.3s var(--144hz-flui
 <div class="button-row"><button id="logoutBtn">Logout 📤</button><button id="closeModal">Close ❌</button></div></div></div>
 <div id="mentorDetailPanel" class="mentor-detail-panel hidden"><div class="mentor-detail-content"><div class="mentor-detail-header"><span id="mentorDetailTitle"></span>
 <button onclick="closeMentorDetailPanel()">✕</button></div><div id="mentorDetailBody"></div></div></div>
-<div id="studentTaskContainer"></div><div id="dashboardContent"></div>
+<div id="studentTaskContainer"></div>
+<div class="mobile-header">
+  <h2 style="margin:0; font-size:1.2rem; font-weight:800; color:#0f172a;">HamaraLabs</h2>
+  <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+</div>
+<div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleMobileMenu()"></div>
+<div id="dashboardContent"></div>
 <script type="module" src="jsCodes/dashboard.js"></script><script type="module" src="jsCodes/settings.js"></script></body></html>

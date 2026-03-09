@@ -313,9 +313,9 @@ body{display:flex;height:100vh;background:#f6f8fc;}
   color: #f41414;
 }
 .settings-Btn {
-  position: fixed;     /* Locks to viewport */
-  top: 12px;           /* Distance from top */
-  right: 240px;         /* Distance from right */
+  position: fixed;     
+  top: 12px;           
+  right: 240px;         
 
   background: #f8fafc;
   border-radius: 50%;
@@ -328,7 +328,7 @@ body{display:flex;height:100vh;background:#f6f8fc;}
 
   transition: all 0.3s ease;
   cursor: pointer;
-        /* Ensures it stays above other elements */
+        
 }
 .settings-Btn:hover {
   background: #e2e8f0;
@@ -357,7 +357,7 @@ body{display:flex;height:100vh;background:#f6f8fc;}
   font-size: 13px;
   text-transform: uppercase;
   font-weight: 600;
-  color: #86868b; /* iOS System Gray */
+  color: #86868b; 
   letter-spacing: -0.01em;
   margin-bottom: 12px;
   padding-left: 6px; 
@@ -485,3 +485,147 @@ box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12),inset 0 1px 1px rgba(255, 255, 255, 
 #studentList .card > div:nth-child(4) { animation-delay: 0.15s; }
 #studentList .card > div:nth-child(5) { animation-delay: 0.2s; }
 #studentList .card > div:nth-child(6) { animation-delay: 0.25s; }
+/* ==========================================================================
+   📱 HAMARALABS GLOBAL MOBILE ARCHITECTURE (Max Width: 768px)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  
+  body { font-size: 14px; } 
+  
+  
+  .snap-theme-container, 
+  .hub-wrapper, 
+  .oui-wrapper,
+  #dashboardContent {
+    padding: 16px 12px !important;
+  }
+
+  
+  .snap-surface-card,
+  .oui-surface-card,
+  [style*="padding: 32px"], 
+  [style*="padding:32px"] {
+    padding: 20px !important;
+  }
+
+  
+  
+  .hub-controls, 
+  .snap-controls, 
+  .oui-form-grid,
+  [style*="display: flex; gap: 16px; flex-wrap: wrap;"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  
+  .snap-pro-select, 
+  .oui-select, 
+  input[type="text"], 
+  select {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  
+  button, 
+  .snap-tab-btn, 
+  .oui-btn-primary {
+    min-height: 48px !important; 
+    width: 100% !important; 
+    justify-content: center !important;
+    margin-top: 8px !important;
+  }
+
+  
+  .td-modal, 
+  .tm-modal, 
+  .hub-mac-modal, 
+  .oui-modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 90vh !important;
+    border-radius: 24px 24px 0 0 !important; 
+    position: absolute !important;
+    bottom: 0 !important; 
+    transform: translateY(100%) !important; 
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    margin: 0 !important;
+    border: none !important;
+  }
+
+  
+  .active .td-modal, 
+  .active .tm-modal, 
+  .active .hub-mac-modal, 
+  .active .oui-modal-content {
+    transform: translateY(0) !important;
+  }
+
+  
+  .td-modal::before, 
+  .hub-mac-modal::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 5px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    margin: 12px auto -10px auto;
+  }
+}
+
+.mobile-header {
+  display: none;
+  background: #fff;
+  padding: 16px 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-menu-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #0f172a;
+}
+
+@media (max-width: 768px) {
+  .mobile-header { display: flex; }
+  
+  
+  #sidebar {
+    position: fixed;
+    left: -100%; 
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 2000;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 10px 0 30px rgba(0,0,0,0.1);
+  }
+
+  #sidebar.open {
+    left: 0; 
+  }
+
+  
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(4px);
+    z-index: 1999;
+    display: none;
+  }
+  .sidebar-overlay.active { display: block; }
+}

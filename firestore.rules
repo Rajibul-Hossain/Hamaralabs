@@ -1,71 +1,58 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isAdmin() {
-      return isAuthenticated() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    function isMentor() {
-      return isAuthenticated() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'mentor';
-    }
-    
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
+    function isSignedIn() {
+      return request.auth != null;}
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;}
+    function isStaffOrAdmin() {
+      let role = getUserRole();
+      return role == 'admin' || role == 'platform-admin' || role == 'super-admin' || role == 'atl-incharge' || role == 'school-admin' || role == 'mentor';}
+    function isAdmin() {let role = getUserRole();
+      return role == 'admin' || role == 'platform-admin' || role == 'super-admin';}
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      // Allows user to create their own profile during sign-up, and Admins/Mentors to update
-      allow create, update: if isOwner(userId) || isAdmin() || isMentor();
-      allow delete: if isAdmin();
-    }
-    // Typo Fallback
-    match /user/{userId} {
-      allow read, write: if isAuthenticated();
+     
+      allow read: if isSignedIn();
+      // A user can create their own profile during registration
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Users can edit their own profile, Admins/Staff can edit anyone
+      allow update: if isSignedIn() && (request.auth.uid == userId || isStaffOrAdmin());
+      allow delete: if isSignedIn() && isAdmin();
     }
 
+    // 2. SCHOOLS & ASSIGNMENTS (Infrastructure)
     match /schools/{schoolId} {
-      // Allows reading for dropdowns, and create/update for the Auth onboarding flow
-      allow read, create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+      allow read, create: if isSignedIn();
+      allow update, delete: if isSignedIn() && isAdmin();
     }
-    // Typo Fallback
-    match /school/{schoolId} {
-      allow read, write: if isAuthenticated();
+    
+    match /mentorSchoolAssignments/{docId} {
+      allow read, create: if isSignedIn();
+      allow update, delete: if isSignedIn() && isStaffOrAdmin();
+    }
+    
+    match /inchargeSchoolAssignments/{docId} {
+      allow read, create: if isSignedIn();
+      allow update, delete: if isSignedIn() && isAdmin();
     }
 
-    match /mentorSchoolAssignments/{assignmentId} {
-      // Allows mentors to read and assign themselves during onboarding
-      allow read, create, update: if isAuthenticated();
-      allow delete: if isAdmin();
-    }
+    // 3. TASKS (Standard Operations)
     match /tasks/{taskId} {
-      // Students read/update progress, Mentors create/read tasks
-      allow read, create, update: if isAuthenticated();
-      allow delete: if isAdmin() || isMentor();
-      
-      match /doubts/{doubtId} {
-        // Students create doubts, Mentors read and update them with replies
-        allow read, create, update: if isAuthenticated();
-        allow delete: if isAdmin() || isMentor();
-      }
+      // All authenticated users can read tasks (Our code filters what they see)
+      allow read: if isSignedIn();
+      // Only Staff/Admins can assign or delete tasks
+      allow create, delete: if isSignedIn() && isStaffOrAdmin();
+      // Anyone can update (Students need to update progress/status, Staff can edit everything)
+      allow update: if isSignedIn();
     }
-    // Typo Fallback
-    match /task/{taskId} {
-      allow read, write: if isAuthenticated();
-    }
-    // Prevents crashes on system collections like notifications or settings
-    match /{document=**} {
-      allow read: if isAuthenticated();
+
+    // 4. TINKERING ACTIVITIES (Mission Hub)
+    match /tinkering_activities/{taId} {
+      allow read: if isSignedIn();
+      // Only Staff/Admins can clone templates from the Library
+      allow create, delete: if isSignedIn() && isStaffOrAdmin();
+      // Students update submission URLs and status; Staff update approvals
+      allow update: if isSignedIn();
     }
   }
 }

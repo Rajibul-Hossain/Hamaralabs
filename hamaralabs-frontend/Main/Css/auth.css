@@ -307,14 +307,14 @@ input:focus {
     background 0.4s ease;
 }
 
-/* Logo sizing */
+
 .provider-btn i {
   font-size: 1.15rem;
   transition:
     transform 0.45s cubic-bezier(.22,1,.36,1),
     filter 0.45s ease;
 }
-/*hover effcts*/
+
 .provider-btn::before {
   content: '';
   position: absolute;

@@ -1,6 +1,8 @@
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-const auth = getAuth(); const db = getFirestore();
+import { getFirestore, doc, setDoc, serverTimestamp, persistentLocalCache, persistentMultipleTabManager,} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+const auth = getAuth(); // THE GLOBAL DATABASE CACHE
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })});
 document.addEventListener("change", (e) => {if (e.target && e.target.id === "sameAsPrincipal") {if (e.target.checked) {
       document.getElementById("coFirst").value = document.getElementById("prFirst").value || "";
       document.getElementById("coLast").value = document.getElementById("prLast").value || "";
