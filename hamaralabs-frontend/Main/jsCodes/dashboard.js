@@ -5,6 +5,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstati
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check.js";
 import { addCheckmarkAnimation, confettiBurst, startPremiumSparkle, regformCSS, regHTML, tinkerCSS } from "./animations.js";
 import { loadAdminOverview, loadAdminSchools, loadAdminUsers, loadStudentSnapshot } from "./adminFxn.js";
+import { loadCompetitionForm, loadCompetitionReports} from "./competitionform.js";
 import { dispatchEmailNotification, loadStudentTAs } from "./basicfxns.js";
 import { loadInchargeOverview, loadTAForm, loadTAReport, loadStaffTasks } from "./atlinchfxn.js";
 const firebaseConfig = {
@@ -41,17 +42,21 @@ function renderSidebar(role) {
       HamaraLabs <span style="font-size: 1.4rem;">🏠</span></div>`;
   let menuStructure = []; 
   const safeRole = role.toLowerCase();
- if (safeRole === "mentor") {
+ // ========================================================================
+  // 1. SIDEBAR MENU STRUCTURE
+  // ========================================================================
+  if (safeRole === "mentor") {
     menuStructure = [
       { category: "Overview", items: ["Feature in Progress..."] },
       { category: "My Hub", items: ["students", "team operations", "studentReg", "studentList"] },
       { category: "AI Feature", items: ["tinkerLab"] },
-      { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] }
+      { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },
+      { category: "Competitions", items: ["compRegistration", "compReports", "compSnapshot"] } // 🏆 Added
     ];
   } 
   else if (safeRole === "student") {
     menuStructure = [
-      { category: "Overview", items: ["Student Snapshot"] }, // Replaced blank feature with their new Telemetry Dashboard!
+      { category: "Overview", items: ["Student Snapshot"] }, 
       { category: "My Workspace", items: ["myTasks"] },
       { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkeringActivities", "tinkering activity report"] }
     ];
@@ -60,14 +65,20 @@ function renderSidebar(role) {
     menuStructure = [
       { category: "Command Center", items: ["overview", "team operations"] },
       { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },
-      { category: "Personnel & Telemetry", items: ["studentSnapshot", "studentReg", "studentList"] }];} 
-  else if (safeRole === "admin") { 
+      { category: "Tournaments", items: ["compRegistration", "compReports"] }, // 🏆 Added
+      { category: "Personnel & Telemetry", items: ["studentSnapshot", "studentReg", "studentList"] }
+    ];
+  } 
+  else if (safeRole === "admin" || safeRole === "platform-admin" || safeRole === "super-admin") { 
     menuStructure = [
       { category: "Home", items: ["overview"] },
       { category: "Approvals", items: ["users"] },
       { category: "Schools", items: ["schools", "Register School"] },
-      { category: "Users & Telemetry", items: ["studentSnapshot",  "studentReg", "studentList", "team operations"] },
-      { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },];}
+      { category: "Users & Telemetry", items: ["studentSnapshot", "studentReg", "studentList", "team operations"] },
+      { category: "Tinkering Activities", items: ["Tinkering Activity Form", "tinkering activity report"] },
+      { category: "Tournaments", items: ["compRegistration", "compReports"] } // 🏆 Added
+    ];
+  }
   const displayNames = {
     "overview": "Overview", 
     "analytics": "Analytics", 
@@ -85,49 +96,107 @@ function renderSidebar(role) {
     "myTasks": "My Tasks", 
     "studentList": "Student Data", 
     "Student Snapshot": "Student Snapshot ", 
-    "studentSnapshot": "Student Snapshot", // Fallback
+    "studentSnapshot": "Student Snapshot", 
     "tinkeringActivities": "Assigned TAs",
     "Tinkering Activity Form": "TA form",
     "tinkering activity report": "TA report",
     "team operations": "Tasks",
     "Feature in Progress...": "Coming Soon ⏳",
-    "Feature in Progress": "Coming Soon ⏳"};
-  menuStructure.forEach(group => {const catHeader = document.createElement("div"); 
+    "Feature in Progress": "Coming Soon ⏳",
+    "compRegistration": "Competition Form", 
+    // Add to your displayNames mapping:
+  "compSnapshot": "Competition Snapshot",
+    "compReports": "Competition Report" 
+             // 🏆 Added
+  };
+
+  // Render Sidebar
+  menuStructure.forEach(group => {
+    const catHeader = document.createElement("div"); 
     catHeader.className = "sidebar-category";
-    catHeader.innerText = group.category; sidebar.appendChild(catHeader);
-    group.items.forEach(module => {const item = document.createElement("div"); 
+    catHeader.innerText = group.category; 
+    sidebar.appendChild(catHeader);
+    
+    group.items.forEach(module => {
+      const item = document.createElement("div"); 
       item.className = "nav-item";
       item.innerText = displayNames[module] || module.charAt(0).toUpperCase() + module.slice(1);
       item.onclick = () => {
-        document.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));item.classList.add("active"); loadSection(module);}; sidebar.appendChild(item);});});}
+        document.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));
+        item.classList.add("active"); 
+        loadSection(module);
+      }; 
+      sidebar.appendChild(item);
+    });
+  });
+}
+
+// ========================================================================
+// 3. MASTER ROUTER (loadSection)
+// ========================================================================
 async function loadSection(section) {
+  // Mobile Sidebar Auto-Close
   if (window.innerWidth <= 768) {
-   document.getElementById('sidebar').classList.remove('open');
-   document.getElementById('sidebarOverlay').classList.remove('active');
-   document.body.style.overflow = '';
-}
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
   clearListener();
-  contentArea.innerHTML = `<div class="loader">Loading...</div>`;
-  if (section === "Tinkering Activity Form") { loadTAForm(db, currentUID, contentArea);return;}
-  if (section === "tinkering activity report") { loadTAReport(db, currentUID, contentArea);return; }
+  contentArea.innerHTML = `<div class="loader" style="text-align:center; padding:60px; color:#86868b; font-weight:600;">Loading... ⏳</div>`;
+  
+  // 🏆 COMPETITION ENGINE ROUTING (Dynamic Imports for speed)
+  if (section === "compRegistration") {
+    import('./competitionform.js')
+      .then(module => module.loadCompetitionForm(db, contentArea, currentUID))
+      .catch(err => { console.error("Error loading Comp Form:", err); contentArea.innerHTML = `<div style="padding:40px; color:#ff3b30; text-align:center;">Failed to load Architect.</div>`; });
+    return;
+  }
+  
+  if (section === "compReports") {
+    import('./competitionform.js')
+      .then(module => module.loadCompetitionReports(db, contentArea, currentUID))
+      .catch(err => { console.error("Error loading Comp Hub:", err); contentArea.innerHTML = `<div style="padding:40px; color:#ff3b30; text-align:center;">Failed to load Hub.</div>`; });
+    return;
+  }
+
+  // GLOBAL ROUTES
+  if (section === "Tinkering Activity Form") { loadTAForm(db, currentUID, contentArea); return; }
+  if (section === "tinkering activity report") { loadTAReport(db, currentUID, contentArea); return; }
   if (section === "tinkerLab") { loadTinkerLab(); return; }
-  if (section === "students") loadStudentsSection();
-  if (section === "assignedTeams") loadAssignedTeams();
-  if (section === "sessions") loadSessions();
-  if (section === "analytics") loadAnalytics();
-  if (section === "myTasks") loadStudentTasks();
-  if (section === "team operations") {
-  loadStaffTasks(db, currentUID, contentArea);
-  return;
-}
-  if (section === "studentList") { import('./adminFxn.js').then(module => module.loadStudentList(db, contentArea)).catch(err => console.error("Error loading Student List:", err));return; }
-  if (section === "studentReg") { import('./adminFxn.js').then(module => module.loadStudentRegistration(db, contentArea))
-        .catch(error => { console.error("Error:", error); contentArea.innerHTML = `<div style="text-align:center; padding:40px; color:#FF3B30;">Failed to load.</div>`; });}
-  if (section === "tinkeringActivities") {loadStudentTAs(db, currentUID, contentArea);return;}
-  if (currentRole === "atl-incharge" || currentRole === "atl_incharge"|| currentRole ==="school-admin") { // Checking both just to be perfectly safe!
+  if (section === "students") { loadStudentsSection(); return; }
+  if (section === "assignedTeams") { loadAssignedTeams(); return; }
+  if (section === "sessions") { loadSessions(); return; }
+  if (section === "analytics") { loadAnalytics(); return; }
+  if (section === "myTasks") { loadStudentTasks(); return; }
+  if (section === "team operations") { loadStaffTasks(db, currentUID, contentArea); return; }
+  if (section === "tinkeringActivities") { loadStudentTAs(db, currentUID, contentArea); return; }
+  if (section === "compSnapshot") {
+    import('./competitionform.js')
+      .then(module => module.loadCompetitionSnapshot(db, contentArea, currentUID))
+      .catch(err => { console.error("Error:", err); contentArea.innerHTML = "Failed to load."; });
+    return;
+  }
+  if (section === "studentList") { 
+    import('./adminFxn.js')
+      .then(module => module.loadStudentList(db, contentArea))
+      .catch(err => console.error("Error loading Student List:", err));
+    return; 
+  }
+  
+  if (section === "studentReg") { 
+    import('./adminFxn.js')
+      .then(module => module.loadStudentRegistration(db, contentArea))
+      .catch(error => { console.error("Error:", error); contentArea.innerHTML = `<div style="text-align:center; padding:40px; color:#FF3B30;">Failed to load.</div>`; });
+    return;
+  }
+
+  // INCHARGE & SCHOOL ADMIN SPECIFIC ROUTES
+  if (currentRole === "atl-incharge" || currentRole === "atl_incharge" || currentRole === "school-admin") { 
     if (section === "overview") { loadInchargeOverview(db, currentUID, contentArea); return; }
-if (section === "studentSnapshot") {
-      console.log("👉 ROUTER TRIGGERED FOR SNAPSHOT"); // It will print this now!
+    
+    if (section === "studentSnapshot") {
+      console.log("👉 ROUTER TRIGGERED FOR SNAPSHOT"); 
       contentArea.innerHTML = `<div style="padding: 40px; text-align: center; color: #8e8e93; font-weight: 600;">Router: Initializing Snapshot Sequence... ⏳</div>`;
       
       import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js").then(async ({ doc, getDoc, collection, query, where, getDocs }) => {
@@ -135,40 +204,55 @@ if (section === "studentSnapshot") {
           const userSnap = await getDoc(doc(db, "users", currentUID));
           const userData = userSnap.exists() ? userSnap.data() : {};
           const role = (userData.role || "").toLowerCase(); 
+          
           if (role === "admin" || role === "platform-admin" || role === "super-admin") {
             import('./adminFxn.js')
               .then(module => module.loadStudentSnapshot(db, contentArea, null))
               .catch(err => contentArea.innerHTML = `Import Error: ${err.message}`);
-            return;}
+            return;
+          }
+          
           let mySchoolId = userData.schoolId;
           if (!mySchoolId) {
             const assignSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
-            if (!assignSnap.empty) mySchoolId = assignSnap.docs[0].data().schoolId;}
+            if (!assignSnap.empty) mySchoolId = assignSnap.docs[0].data().schoolId;
+          }
+          
           if (!mySchoolId) {
             contentArea.innerHTML = `<div style="padding: 40px; text-align: center; color: #ef4444; font-weight: 600;">⚠️ No school assigned to your profile.</div>`;
-            return;}
+            return;
+          }
+          
           import('./adminFxn.js')
             .then(module => module.loadStudentSnapshot(db, contentArea, mySchoolId))
             .catch(err => contentArea.innerHTML = `Import Error: ${err.message}`);
         } catch (err) {
-          contentArea.innerHTML = `Database Error: ${err.message}`;}});
+          contentArea.innerHTML = `Database Error: ${err.message}`;
+        }
+      });
       return;
-    }if (section === "Tinkering Activity Form") { loadTAForm(db, currentUID, contentArea);return;}
-if (section === "tinkering activity report") { loadTAReport(db, currentUID, contentArea);return; }
+    }
   }
+
+  // GLOBAL ADMIN SPECIFIC ROUTES
   if (currentRole && currentRole.toLowerCase() === "admin") {
-    if (section === "overview" || section === "adminOverview") loadAdminOverview(db, contentArea);
-    if (section === "schools") loadAdminSchools(db, contentArea);
-    if (section === "users") loadAdminUsers(db, contentArea);
-    if (section === "registerSchool" || section === "Register School") loadRegForm();
-    if (section === "studentReg") { import('./adminFxn.js').then(module => module.loadStudentRegistration(db, contentArea))
-        .catch(error => { console.error("Error:", error); contentArea.innerHTML = `<div style="text-align:center; padding:40px; color:#FF3B30;">Failed to load.</div>`; });}
-    if (section === "studentList") { import('./adminFxn.js').then(module => module.loadStudentList(db, contentArea)).catch(err => console.error("Error loading Student List:", err));return; }
-    if (section === "studentSnapshot") { import('./adminFxn.js')
+    if (section === "overview" || section === "adminOverview") { loadAdminOverview(db, contentArea); return; }
+    if (section === "schools") { loadAdminSchools(db, contentArea); return; }
+    if (section === "users") { loadAdminUsers(db, contentArea); return; }
+    if (section === "registerSchool" || section === "Register School") { loadRegForm(); return; }
+    if (section === "studentSnapshot") { 
+      import('./adminFxn.js')
         .then(module => module.loadStudentSnapshot(db, contentArea))
         .catch(err => console.error("Error loading Snapshot:", err));
-      return; }} else if ((section === "overview" || section === "adminOverview") && typeof loadOverview === "function") {loadOverview();}}
-
+      return; 
+    }
+  } 
+  
+  // FALLBACK
+  else if ((section === "overview" || section === "adminOverview") && typeof loadOverview === "function") {
+    loadOverview();
+  }
+}
 
 async function loadStudentTasks() {
   clearListener(); 
