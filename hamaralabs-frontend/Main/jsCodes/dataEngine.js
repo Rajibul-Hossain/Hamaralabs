@@ -15,5 +15,5 @@ export async function withHyperCache({ cacheKey, container, loadingHtml, execute
     container.innerHTML = freshPayload.html;
     if (freshPayload.globals) Object.assign(window, freshPayload.globals);
     localStorage.setItem(cacheKey, JSON.stringify(freshPayload));
-} catch (error) {console.error(`Global Engine Error [${cacheKey}]:`, error);
+} catch (error) {console.error(`Global Error [${cacheKey}]:`, error);
     if (!cachedData) container.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30; font-weight:600;">System Error. Sync failed.</div>`;}}
