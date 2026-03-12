@@ -1682,23 +1682,18 @@ export function setupAdminTaskDetailDrawer(dbInstance) {
             <h3 id="atTitle" style="margin: 4px 0 0 0; font-size: 1.5rem; color: #09090b; font-weight: 800; letter-spacing: -0.5px;">Loading...</h3>
           </div>
           <button onclick="window.closeAdminTaskDetailModal()" style="background: #e4e4e7; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; color: #52525b; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: 0.2s;">✕</button>
-        </div>
-        <div class="at-body" id="atBody"></div>
-      </div> `;
-    document.body.appendChild(wrapper);
-  }
+        </div><div class="at-body" id="atBody"></div></div> `;
+    document.body.appendChild(wrapper);}
   window.openAdminTaskDetailModal = async function(taskId) {
     const backdrop = document.getElementById("atBackdrop");
     const drawer = document.getElementById("atDrawer");
     const titleEl = document.getElementById("atTitle");
     const bodyEl = document.getElementById("atBody");
-
     if (!backdrop || !drawer) return;
     titleEl.textContent = "Fetching Data...";
     bodyEl.innerHTML = `<div style="text-align:center; color:#888; margin-top:40px;">Scanning secure database... ⏳</div>`;
     backdrop.classList.add("active");
     drawer.classList.add("active");
-
     try {
       const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
       const taskSnap = await getDoc(doc(window.adminDbInstance, "tasks", taskId)); 
