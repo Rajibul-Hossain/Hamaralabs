@@ -1,26 +1,32 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function isSignedIn() {
-      return request.auth != null;}
+      return request.auth != null;
+    }
+    
     function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;}
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
     function isStaffOrAdmin() {
-      let role = getUserRole();
-      return role == 'admin' || role == 'platform-admin' || role == 'super-admin' || role == 'atl-incharge' || role == 'school-admin' || role == 'mentor';}
-    function isAdmin() {let role = getUserRole();
-      return role == 'admin' || role == 'platform-admin' || role == 'super-admin';}
+      let r = getUserRole();
+      return r == 'admin' || r == 'platform-admin' || r == 'super-admin' || r == 'atl-incharge' || r == 'school-admin' || r == 'mentor';
+    }
+    
+    function isAdmin() {
+      let r = getUserRole();
+      return r == 'admin' || r == 'platform-admin' || r == 'super-admin';
+    }
+
     match /users/{userId} {
-     
       allow read: if isSignedIn();
-      // A user can create their own profile during registration
       allow create: if isSignedIn() && request.auth.uid == userId;
-      // Users can edit their own profile, Admins/Staff can edit anyone
       allow update: if isSignedIn() && (request.auth.uid == userId || isStaffOrAdmin());
       allow delete: if isSignedIn() && isAdmin();
     }
 
-    // 2. SCHOOLS & ASSIGNMENTS (Infrastructure)
     match /schools/{schoolId} {
       allow read, create: if isSignedIn();
       allow update, delete: if isSignedIn() && isAdmin();
@@ -36,23 +42,29 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && isAdmin();
     }
 
-    // 3. TASKS (Standard Operations)
     match /tasks/{taskId} {
-      // All authenticated users can read tasks (Our code filters what they see)
-      allow read: if isSignedIn();
-      // Only Staff/Admins can assign or delete tasks
+      allow read, update: if isSignedIn();
       allow create, delete: if isSignedIn() && isStaffOrAdmin();
-      // Anyone can update (Students need to update progress/status, Staff can edit everything)
-      allow update: if isSignedIn();
     }
 
-    // 4. TINKERING ACTIVITIES (Mission Hub)
+    match /tasks/{taskId}/doubts/{doubtId} {
+      allow read, create, update: if isSignedIn();
+      allow delete: if isSignedIn() && isStaffOrAdmin();
+    }
+
     match /tinkering_activities/{taId} {
-      allow read: if isSignedIn();
-      // Only Staff/Admins can clone templates from the Library
+      allow read, update: if isSignedIn();
       allow create, delete: if isSignedIn() && isStaffOrAdmin();
-      // Students update submission URLs and status; Staff update approvals
-      allow update: if isSignedIn();
+    }
+
+    match /competitions/{compId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && isStaffOrAdmin();
+    }
+
+    match /competition_assignments/{assignId} {
+      allow read, update: if isSignedIn();
+      allow create, delete: if isSignedIn() && isStaffOrAdmin();
     }
   }
 }

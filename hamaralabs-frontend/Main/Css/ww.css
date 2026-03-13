@@ -31,7 +31,6 @@
 #sessionDate { width: 100%; padding: 1rem 1.25rem; border-radius: 22px; border: 1px solid rgba(15, 23, 42, 0.06); background: linear-gradient(145deg, #ffffff, #f5f8fc); font-size: 0.97rem; font-weight: 500; color: #0f172a; outline: none; transition: all 0.35s cubic-bezier(.19,1,.22,1); box-shadow: 0 4px 12px rgba(15,23,42,0.04), inset 0 2px 6px rgba(15,23,42,0.03); backdrop-filter: blur(20px); margin-bottom: 1.6rem; appearance: none; cursor: pointer; }
 #sessionDate { padding: 12px; border-radius: 10px; border: 1px solid #ccc; cursor: pointer; width: 100%; }
 #sessionDate:focus { border-color: rgba(15, 23, 42, 0.18); box-shadow: 0 0 0 4px rgba(15,23,42,0.05), 0 8px 25px rgba(15,23,42,0.06), inset 0 3px 8px rgba(15,23,42,0.04); transform: scale(1.02); }
-
 #createSessionBtn { display: block; width: 260px; padding: 0.9rem 1rem; margin: 2rem auto; border-radius: 26px; border: none; font-size: 1rem; font-weight: 600; letter-spacing: 0.4px; cursor: pointer; color: #0f172a; background: linear-gradient(135deg, #ffffff, #eef2f7); box-shadow: 0 10px 30px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9); transition: all 0.35s ease; position: relative; }
 #createSessionBtn:hover { background: linear-gradient(135deg, #3b82f6, #1e3a8a); color: white; transform: scale(1.08); box-shadow: 0 15px 40px rgba(30,58,138,0.4), 0 0 15px rgba(59,130,246,0.5); transform: translateY(-5px); box-shadow: 0 22px 55px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,1); }
 #createSessionBtn:active { transform: scale(0.97); box-shadow: 0 6px 18px rgba(15,23,42,0.08); }

@@ -72,74 +72,53 @@ export async function loadCompetitionSnapshot(db, contentArea, currentUID) {
         const aSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID))); 
         if (!aSnap.empty) mySch = aSnap.docs[0].data().schoolId; 
     }
-    
+  
     const [cSnap, schSnap, stuSnap] = await Promise.all([ 
         getDocs(collection(db, "competitions")), 
         getDocs(collection(db, "schools")),
-        getDocs(isAdm ? query(collection(db, "users"), where("role", "==", "student")) : query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", mySch)))
-    ]); 
-    
+        getDocs(isAdm ? query(collection(db, "users"), where("role", "==", "student")) : query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", mySch)))]); 
     window.snapState = { comps: {}, schools: {}, students: {}, assigns: [] }; 
     let cOpts = `<option value="">-- Select Competition --</option>`;
-    
     let cArr = [];
     cSnap.forEach(d => cArr.push({ id: d.id, ...d.data() })); 
     cArr.sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     cArr.forEach(c => { window.snapState.comps[c.id] = c; cOpts += `<option value="${c.id}">${safeTxt(c.name)}</option>`; });
-    
     schSnap.forEach(d => { const s = d.data(); window.snapState.schools[d.id] = { id: d.id, name: s.schoolName || s.name || "Unknown" }; });
     stuSnap.forEach(d => { const u = d.data(); window.snapState.students[d.id] = { id: d.id, name: u.name || "Unknown", class: u.class || "N/A", schoolId: u.schoolId }; });
-    
     con.innerHTML = `${getCss()}<div class="oui-snap-wrapper"><div class="oui-header"><h2 class="oui-title">Competition Snapshot</h2><p class="oui-subtitle">Filter and view student participation records.</p></div><div class="oui-target-card"><h3 style="margin: 0 0 20px 0; font-size: 1.25rem; color: var(--oui-text-main); font-weight:800;">Filters</h3><div class="oui-filter-grid"><div class="oui-filter-group"><label class="oui-filter-label">Competition</label><select id="fsComp" class="oui-select" onchange="window.onCompChange()">${cOpts}</select></div><div class="oui-filter-group" style="display: ${isAdm ? 'flex' : 'none'};"><label class="oui-filter-label">School</label><select id="fsSchool" class="oui-select" onchange="window.onSchChange()" disabled><option value="">-- Select Competition First --</option></select></div><div class="oui-filter-group"><label class="oui-filter-label">Student</label><select id="fsStudent" class="oui-select" disabled><option value="">-- Select Competition First --</option></select></div></div><button class="oui-btn-retrieve" onclick="window.getRecords()">Get Records <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></div><div id="snapResultsContainer"><div style="text-align:center; padding: 60px; color:var(--oui-text-sub); font-style:italic; font-weight:600; font-size:1.1rem;">Select filters and hit Get Records...</div></div></div>`;
-    
     window.mySchId = isAdm ? null : mySch;
-    
     window.onCompChange = async () => {
       const cid = document.getElementById('fsComp').value;
       const schSel = document.getElementById('fsSchool');
       const stuSel = document.getElementById('fsStudent');
-      
       if (!cid) {
         schSel.innerHTML = `<option value="">-- Select Competition First --</option>`; schSel.disabled = true;
         stuSel.innerHTML = `<option value="">-- Select Competition First --</option>`; stuSel.disabled = true;
-        return;
-      }
-      
+        return;}
       schSel.innerHTML = `<option value="">Loading...</option>`; schSel.disabled = true;
       stuSel.innerHTML = `<option value="">Loading...</option>`; stuSel.disabled = true;
-      
       try {
         const aQ = query(collection(window.snapDb, "competition_assignments"), where("competitionId", "==", cid));
         const aSnap = await getDocs(aQ);
         window.snapState.assigns = [];
         aSnap.forEach(d => window.snapState.assigns.push({id: d.id, ...d.data()}));
-        
         const pSchs = new Set();
         window.snapState.assigns.forEach(a => {
           const stu = window.snapState.students[a.studentId];
-          if (stu) pSchs.add(stu.schoolId);
-        });
-        
+          if (stu) pSchs.add(stu.schoolId);});
         if (pSchs.size === 0) {
           schSel.innerHTML = `<option value="">No participants found</option>`;
           stuSel.innerHTML = `<option value="">No participants found</option>`;
-          return;
-        }
-        
+          return;}
         let schHtml = `<option value="">-- All Participating Schools --</option>`;
         [...pSchs].forEach(sid => {
           const sName = window.snapState.schools[sid] ? window.snapState.schools[sid].name : sid;
-          schHtml += `<option value="${sid}">${safeTxt(sName)}</option>`;
-        });
+          schHtml += `<option value="${sid}">${safeTxt(sName)}</option>`;});
         schSel.innerHTML = schHtml; schSel.disabled = false;
-        
         if (!isAdm && window.mySchId) {
-            schSel.value = window.mySchId;
-        }
-        
+            schSel.value = window.mySchId;} 
         window.onSchChange();
-      } catch(e) { console.log(e); }
-    };
+      } catch(e) { console.log(e); }};
     
     window.onSchChange = () => {
       const sid = document.getElementById('fsSchool').value || window.mySchId;
