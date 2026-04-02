@@ -1,14 +1,9 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut, updateEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-const firebaseConfig = {
-  apiKey: "AIzaSyAPyLzaSXa1wMjD77wMi1-Z2bSvhAbFCBU",
-  authDomain: "digital-atl.firebaseapp.com",
-  projectId: "digital-atl",
-  storageBucket: "digital-atl.firebasestorage.app",
-  messagingSenderId: "428997443618",
-  appId: "1:428997443618:web:0cb487a807a8ccd5ee0a7b",
-  measurementId: "G-G0SYKW59P6"};
+const configResponse = await fetch("https://hamaralabs.vercel.app/api/config");
+const firebaseConfig = await configResponse.json();
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 initializeApp(firebaseConfig);
 const auth = getAuth(); const db = getFirestore();
 const settingsBtn = document.getElementById("settingsBtn");

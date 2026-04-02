@@ -6,14 +6,8 @@ import { addCheckmarkAnimation, confettiBurst, startPremiumSparkle, regformCSS, 
 import { loadAdminOverview, loadAdminSchools, loadAdminUsers, } from "./adminFxn.js";
 import { dispatchEmailNotification, loadStudentTAs } from "./basicfxns.js";
 import { loadInchargeOverview, loadTAForm, loadTAReport, loadStaffTasks } from "./atlinchfxn.js";
-const firebaseConfig = {
-  apiKey: "AIzaSyAPyLzaSXa1wMjD77wMi1-Z2bSvhAbFCBU",
-  authDomain: "digital-atl.firebaseapp.com",
-  projectId: "digital-atl",
-  storageBucket: "digital-atl.firebasestorage.app",
-  messagingSenderId: "428997443618",
-  appId: "1:428997443618:web:0cb487a807a8ccd5ee0a7b",
-  measurementId: "G-G0SYKW59P6"}; 
+const configResponse = await fetch("https://hamaralabs.vercel.app/api/config");
+const firebaseConfig = await configResponse.json();
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app); export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })});
