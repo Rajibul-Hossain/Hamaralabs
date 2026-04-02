@@ -329,14 +329,14 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
                 <option value="" disabled selected>How did the activity go?</option>
                 <option value="successful">✅ Mission Accomplished (Successful)</option>
                 <option value="partly_done">🚧 Need Backup (Partly Done)</option>
-                <option value="could_not">❌ Mission Failed (Couldn't Complete)</option>
+                <option value="could_not">❌Failed (Couldn't Complete)</option>
             </select>
 
             <label style="display:block; font-size: 0.9rem; font-weight: 700; color: #8e8e93; margin-bottom: 8px;">Field Notes & Observations</label>
             <textarea id="ta-stu-notes-${taId}" placeholder="What did you learn? Did you face any issues?" style="width: 100%; box-sizing: border-box; background: #fff; border: 2px solid transparent; border-radius: 16px; padding: 16px; font-size: 1rem; color: #1c1c1e; outline: none; transition: 0.3s; margin-bottom: 24px; min-height: 100px; resize: vertical; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onfocus="this.style.borderColor='#007aff'"></textarea>
             
             <button onclick="window.submitTAMission('${taId}')" id="btn-submit-${taId}" style="background: #0099ff; color: #fff; border: none; border-radius: 100px; padding: 18px; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(52, 140, 199, 0.3); width: 100%; transition: 0.2s;">
-              Upload & Generate 📡</button></div>`;
+              Upload 📡</button></div>`;
       }
 
       document.getElementById('stuModalContent').innerHTML = `
@@ -365,7 +365,7 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
       requestAnimationFrame(() => overlay.classList.add('active'));
     };
     
-    // THE AI GENERATION LOGIC - SAVES BACK INTO THE CORRECT NESTED SUBCOLLECTION
+    // T SAVS BACK INTO THE CORRECT NESTED SUBCOLLECTION
     window.submitTAMission = async function(taId) {
       const btn = document.getElementById(`btn-submit-${taId}`);
       const linkVal = document.getElementById(`ta-stu-link-${taId}`).value.trim();
@@ -386,7 +386,7 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         
         if (!parentId) throw new Error("Missing parentTemplateId. Cannot locate nested path.");
 
-        // 3. TARGETED UPDATE: Update the specific assignment nested inside its parent Master TA
+        // 3. Ue the specific assignment nested inside its parent Master TA
         const specificAssignmentRef = doc(db, "tinkering_activities", parentId, "assignments", taId);
         
         await updateDoc(specificAssignmentRef, {
@@ -418,7 +418,7 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         const aiResponse = await fetch(backendEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ promptText: prompt }) // Matches expected backend payload
+            body: JSON.stringify({ promptText: prompt }) //  expected backend payload
         });
         
         if (aiResponse.ok) {
@@ -438,7 +438,7 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
                 }
                 const generatedTA = JSON.parse(rawJsonText);
 
-                // 4. TARGETED INSERT: Adds the new AI Clone directly into the same nested 'assignments' subcollection
+                // 4.  AI Clone directly into the same nested 'assignments' subcollection
                 const assignmentsSubcollectionRef = collection(db, "tinkering_activities", parentId, "assignments");
                 
                 await addDoc(assignmentsSubcollectionRef, {
@@ -458,7 +458,7 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         window.taStudentData[taId].status = 'submitted';
         window.taStudentData[taId].submissionURL = linkVal;
         window.taStudentData[taId].studentNotes = notesVal;
-        btn.innerText = "Uploaded & AI Task Ready ✅";
+        btn.innerText = "Uploaded";
         btn.style.background = "#34c759";
         
         setTimeout(() => { 
@@ -473,30 +473,21 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         btn.disabled = false;
         setTimeout(() => { 
           window.closeStudentTAModal();
-          loadStudentTAs(db, currentUID, contentArea); 
-        }, 2000);
-      }
-    };
-    
+          loadStudentTAs(db, currentUID, contentArea); }, 2000);}};
     window.closeStudentTAModal = function() {
       const overlay = document.getElementById('stuModalOverlay');
       overlay.classList.remove('active');
       setTimeout(() => overlay.style.display = 'none', 300);
-      document.body.style.overflow = ''; 
-    };
-    
+      document.body.style.overflow = ''; };
     contentArea.innerHTML = `${studentCss}
       <div class="stu-wrapper">
         <h2 class="stu-header-title">Mission Briefings</h2>
         <p class="stu-subtitle">Tinkering Activities assigned by your ATL Incharge.</p>
         <div class="stu-grid">${gridHtml}</div>
       </div>
-      
       <div id="stuModalOverlay" class="stu-modal-overlay" onclick="if(event.target===this) window.closeStudentTAModal()">
         <div class="stu-modal" id="stuModalContent"></div>
-      </div>
-    `;
-
+      </div>`;
   } catch (error) {
     console.error("Error loading student TAs:", error);
     contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30; font-weight:600;">Failed to establish connection.</div>`;

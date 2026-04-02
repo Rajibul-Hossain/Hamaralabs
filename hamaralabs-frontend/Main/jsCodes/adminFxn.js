@@ -1,6 +1,5 @@
 import { collection, query, where, getCountFromServer, getDocs, updateDoc, addDoc, doc, deleteDoc, getDoc, persistentLocalCache, persistentMultipleTabManager, } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { stCss, csss } from "./animations.js";
-
 export async function loadAdminOverview(db, contentArea) {const container = contentArea || document.getElementById("dashboardContent");
   if (!container) return;
   try {const schoolsColl = collection(db, "schools");const tasksColl = collection(db, "tasks");
@@ -725,7 +724,7 @@ export async function loadStudentRegistration(db, contentArea) {
           gender: document.getElementById('regGender').value,
           aspiration: document.getElementById('regAspiration').value,
           isTeamLeader: document.getElementById('regLeader').checked,
-          comments: document.getElementById('regComments').value,
+          interests: document.getElementById('regComments').value,
           tags: window.studentTags,
           guardians: guardians,
           approvalStatus: 'approved'
@@ -1164,7 +1163,8 @@ export async function loadStudentRegistration(db, contentArea) {
   `;
 
   try {
-    const { collection, query, where, getDocs, doc, getDoc, deleteDoc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    // 1. ADDED collectionGroup to imports for nested queries
+    const { collectionGroup, collection, query, where, getDocs, doc, getDoc, deleteDoc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
     const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
     
     window.snapshotDb = db;
@@ -1219,7 +1219,8 @@ export async function loadStudentRegistration(db, contentArea) {
     if (userRole === "student") {
       const [tasksSnap, taSnap] = await Promise.all([
         getDocs(query(collection(db, "tasks"), where("studentId", "==", currentUID))),
-        getDocs(query(collection(db, "tinkering_activities"), where("assignedTo", "==", currentUID)))
+        // 2. UPDATED QUERY: Using collectionGroup("assignments")
+        getDocs(query(collectionGroup(db, "assignments"), where("assignedTo", "==", currentUID)))
       ]);
 
       let myTasks = []; let myMissions = [];
@@ -1394,11 +1395,12 @@ export async function loadStudentRegistration(db, contentArea) {
         resultArea.innerHTML = `<div style="text-align:center; padding: 60px; color: #3b82f6; font-weight:600; font-size:1.1rem;">Securely retrieving records... <span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span></div>`;
         
         try {
-          const { collection, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+          const { collectionGroup, collection, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
 
           const [tasksSnap, taSnap] = await Promise.all([
             getDocs(query(collection(window.snapshotDb, "tasks"), where("studentId", "==", studentId))),
-            getDocs(query(collection(window.snapshotDb, "tinkering_activities"), where("assignedTo", "==", studentId)))
+            // 3. UPDATED QUERY: Using collectionGroup("assignments") for Admin/Mentor view
+            getDocs(query(collectionGroup(window.snapshotDb, "assignments"), where("assignedTo", "==", studentId)))
           ]);
 
           let stTasks = []; let stMissions = [];
@@ -1514,6 +1516,7 @@ export async function loadStudentRegistration(db, contentArea) {
       `;
     }
 
+    // 4. UPGRADED MODAL: Reads straight from memory instead of blind fetching to avoid nesting path issues. Super fast!
     window.openTADetailModal = async function(taId) {
       const overlay = document.getElementById("taskDetailOverlay"); 
       const titleEl = document.getElementById("tdTitle");
@@ -1526,9 +1529,15 @@ export async function loadStudentRegistration(db, contentArea) {
       overlay.classList.add("active");
 
       try {
-        const taSnap = await window.snapshotGetDoc(window.snapshotDocRef(window.snapshotDb, "tinkering_activities", taId));
-        if (!taSnap.exists()) { bodyEl.innerHTML = "Mission not found."; return; }
-        const ta = taSnap.data();
+        let ta = null;
+        // Search memory for the specific mission without needing a database hit
+        for (const sId in window.snapshotStudents) {
+            const found = window.snapshotStudents[sId].missions?.find(m => m.id === taId);
+            if (found) { ta = found; break; }
+        }
+
+        if (!ta) { bodyEl.innerHTML = "Mission not found."; return; }
+        
         const status = (ta.status || 'assigned').toLowerCase();
         titleEl.innerText = ta.activityName || "Untitled Mission";
         let statusColor = status === 'completed' ? '#10b981' : (status === 'submitted' ? '#3b82f6' : '#64748b');
@@ -1546,8 +1555,9 @@ export async function loadStudentRegistration(db, contentArea) {
           <h4 style="font-size: 0.85rem; color: #64748b; text-transform: uppercase; margin-bottom: 12px;">Telemetry Notes</h4>
           ${ta.studentNotes ? `<div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 0 12px 12px 0; color: #78350f; font-size: 1.05rem; line-height: 1.6; margin-bottom: 24px; font-style: italic; font-weight:500;">"${ta.studentNotes}"</div>` : `<div style="color: #94a3b8; font-style: italic; margin-bottom: 24px; padding: 16px; background: #f8fafc; border-radius: 12px; text-align: center; font-weight: 500;">No field notes logged.</div>`}
           ${ta.submissionURL ? `<a href="${ta.submissionURL}" target="_blank" style="display:block; text-align:center; background:linear-gradient(135deg, #4f46e5, #3b82f6); color:white; padding:16px; border-radius:12px; font-weight:800; text-decoration:none; box-shadow:0 4px 12px rgba(59,130,246,0.3);">🔗 View Mission Evidence ↗</a>` : `<div style="text-align:center; padding:16px; background:#f8fafc; color:#64748b; border-radius:12px; font-weight:700; font-style:italic;">No evidence link submitted</div>`}
-        `;}
-         catch(e) { bodyEl.innerHTML = "Error loading data."; }};
+        `;
+      } catch(e) { bodyEl.innerHTML = "Error loading data."; }
+    };
       
     window.openTaskDetailModal = async function(taskId) {
       const overlay = document.getElementById("taskDetailOverlay");

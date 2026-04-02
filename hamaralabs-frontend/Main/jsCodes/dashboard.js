@@ -31,9 +31,7 @@ onAuthStateChanged(auth, async (user) => {
   if (!userSnap.exists()) { alert("User profile not found."); return; }
   currentRole = userSnap.data().role || "DEAD";
   initDashboard(userSnap.data());});
-function initDashboard(userData) {document.getElementById("welcomeText").innerText = `Welcome, ${userData.name || "User"}`;
-  document.getElementById("roleBadge").innerText = (currentRole).toUpperCase();
-  renderSidebar(currentRole); loadSection("overview");}
+
 function renderSidebar(role) {
   sidebar.innerHTML = `<div class="logo" style="margin-bottom: 16px; font-weight: 800; font-size: 1.4rem; padding: 10px 16px;">
       HamaraLabs <span style="font-size: 1.4rem;">🏠</span></div>`;
@@ -104,7 +102,7 @@ menuStructure.forEach(group => {
   });
 });
 
-async function loadSection(section) {
+window.loadSection = async function(section) {
   if (window.innerWidth <= 768) {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('active');
@@ -217,6 +215,9 @@ async function loadSection(section) {
     loadOverview();
   }
 }}
+function initDashboard(userData) {document.getElementById("welcomeText").innerText = `Welcome, ${userData.name || "User"}`;
+  document.getElementById("roleBadge").innerText = (currentRole).toUpperCase();
+  renderSidebar(currentRole); loadSection("overview");}
 async function loadStudentTasks() { clearListener(); 
   const q = query(collection(db, "tasks"), where("studentId", "==", currentUID));
   activeUnsubscribe = onSnapshot(q, (snapshot) => {
