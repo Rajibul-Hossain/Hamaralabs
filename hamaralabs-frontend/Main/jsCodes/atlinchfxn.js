@@ -165,403 +165,489 @@ requestAnimationFrame(() => {setTimeout(() => {
  if (ring) { ring.style.strokeDashoffset = offset; }}, 100);});
 } catch (error) {console.error("Error loading incharge overview:", error);
 contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-family:-apple-system, sans-serif; font-weight:600;">Failed to establish connection to Academic Database. Please refresh.</div>`;}}
-export async function loadTAForm(db, currentUID, contentArea) {
-contentArea.innerHTML = `<div class="loader">Loading TA form</div>`;
-try {const userDocSnap = await getDoc(doc(db, "users", currentUID));
-if (!userDocSnap.exists()) return;
-const userData = userDocSnap.data();
-let schoolId = userData.schoolId;
-if ((userData.role === "atl-incharge" || userData.role === "school-admin") && !schoolId) {
- const assignmentSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
- if (!assignmentSnap.empty) schoolId = assignmentSnap.docs[0].data().schoolId;}
-if (!schoolId) {contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No school assigned. Cannot create Tinkering Activities.</div>`;return;}
-const generatedActivityId = `TA-${Date.now().toString().slice(-7)}`;
-const taCss = `<style>
- .ta-wrapper { font-family: -apple-system, sans-serif; max-width: 1040px; margin: 0 auto; padding: 20px 10px 60px 10px; animation: taFadeUp 0.6s ease; }
- .ta-title { font-size: 2.4rem; font-weight: 800; color: #1c1c1e; margin: 0; letter-spacing: -1.2px; line-height: 1.1; }
- .ta-subtitle { font-size: 1.05rem; color: #8e8e93; margin-top: 8px; font-weight: 500; }
- .ta-section-title { font-size: 0.85rem; font-weight: 700; color: #8e8e93; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 20px; display: flex; align-items: center; }
- .ta-section-title::after { content: ''; flex: 1; height: 1px; background: rgba(60, 60, 67, 0.1); margin-left: 16px; border-radius: 1px; }
- .ta-label { display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 600; color: #1c1c1e; margin-bottom: 10px; }
- .ta-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 8px 40px rgba(0,0,0,0.04); border-radius: 28px; padding: 36px; margin-bottom: 32px; transition: 0.4s; }
- .ta-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
- .ta-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
- .ta-group { margin-bottom: 24px; }
- .ta-input, .ta-select, .ta-textarea { width: 100%; box-sizing: border-box; background: rgba(118, 118, 128, 0.08); border: 2px solid transparent; border-radius: 16px; padding: 16px 20px; font-size: 1.05rem; outline: none; transition: 0.3s; }
- .ta-input:focus, .ta-select:focus, .ta-textarea:focus { background: #fff; border-color: #007aff; }
- .ta-textarea { resize: vertical; min-height: 120px; }
- .ta-dynamic-container { background: rgba(118, 118, 128, 0.04); border-radius: 20px; padding: 12px; }
- .ta-dynamic-row { display: flex; gap: 10px; margin-bottom: 8px; background: #fff; border-radius: 14px; padding: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
- .ta-dynamic-row .ta-input { background: transparent; padding: 12px 16px; flex: 1; border-radius: 10px;}
- .ta-btn-add-sm { background: rgba(0, 122, 255, 0.1); color: #007aff; border: none; border-radius: 20px; padding: 6px 14px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
- .ta-btn-remove { background: #ffe5e5; color: #ff3b30; border: none; border-radius: 10px; width: 44px; font-size: 1.2rem; cursor: pointer; }
- .ta-actions { display: flex; justify-content: flex-end; gap: 16px; }
- .ta-btn-primary { background: #007aff; color: #fff; border: none; border-radius: 20px; padding: 18px 40px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.3s; }
- .ta-btn-secondary { background: rgba(118, 118, 128, 0.12); border: none; border-radius: 20px; padding: 18px 32px; font-size: 1.1rem; font-weight: 600; cursor: pointer; }
- @keyframes taFadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
- </style>`;
-window.addTADynamicRow = function(containerId, placeholder) {
- const container = document.getElementById(containerId);
- const div = document.createElement('div');
- div.className = 'ta-dynamic-row';
- div.innerHTML = `<input type="text" class="ta-input" data-array="${containerId}" placeholder="${placeholder}"><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button>`;
- container.appendChild(div);};
-window.submitTAForm = async function() {
- const submitBtn = document.getElementById('taSubmitBtn');
- const originalText = submitBtn.innerHTML;
- submitBtn.innerHTML = "Saving to Library... ⏳";
- submitBtn.disabled = true;
- try {
- const getArrayData = (arrayId) => Array.from(document.querySelectorAll(`input[data-array="${arrayId}"]`)).map(input => input.value.trim()).filter(val => val !== "");
- const payload = {
-schoolId: schoolId,
-createdBy: currentUID,
-createdAt: serverTimestamp(),
-status: "library", 
-assignedTo: "unassigned",
-activityId: document.getElementById('ta-id').value,
-activityName: document.getElementById('ta-name').value.trim(),
-subject: document.getElementById('ta-subject').value,
-topic: document.getElementById('ta-topic').value,
-subTopic: document.getElementById('ta-subtopic').value,
-introduction: document.getElementById('ta-intro').value.trim(),
-goals: getArrayData('ta-goals'),
-materials: getArrayData('ta-materials'),
-instructions: getArrayData('ta-instructions'),
-tips: getArrayData('ta-tips'),
-observations: getArrayData('ta-observations'),
-extensions: getArrayData('ta-extensions'),
-resources: getArrayData('ta-resources')};
- if (!payload.activityName || !payload.subject) {
-alert("Activity Name and Subject are required.");
-submitBtn.innerHTML = originalText; submitBtn.disabled = false; return;}
- await addDoc(collection(db, "tinkering_activities"), payload);
- submitBtn.innerHTML = "Saved to Library! ✅";
- submitBtn.style.background = "#34c759";
- setTimeout(() => {document.getElementById('taForm').reset();
-submitBtn.innerHTML = originalText;
-submitBtn.style.background = "#007aff";
-submitBtn.disabled = false;}, 2000);} catch (err) { alert("Failed to save");
- submitBtn.innerHTML = originalText; submitBtn.disabled = false;}};
-contentArea.innerHTML = `${taCss}<div class="ta-wrapper">
- <div style="margin-bottom: 32px;"><h2 class="ta-title">Tinkering Activity Form</h2>
-<p class="ta-subtitle">Design and save master TAs to library.</p></div>
- <form id="taForm" onsubmit="event.preventDefault(); window.submitTAForm();">
-<div class="ta-card"><div class="ta-section-title">Core Specifications</div>
-<div class="ta-grid-3">
-<div class="ta-group"><label class="ta-label">Subject</label><select id="ta-subject" class="ta-select" required><option value="">Select Domain...</option><option value="Electronics & IoT">Electronics & IoT</option><option value="Robotics">Robotics</option><option value="Coding & AI">Coding & AI</option><option value="3D Design & Printing">3D Design & Printing</option><option value="Science Experiment">Science Experiment</option></select></div>
-<div class="ta-group"><label class="ta-label">Topic</label><input type="text" id="ta-topic" class="ta-input" placeholder="e.g. Microcontrollers"></div>
-<div class="ta-group"><label class="ta-label">Sub Topic</label><input type="text" id="ta-subtopic" class="ta-input" placeholder="e.g. Arduino Basics"></div></div>
-<div class="ta-grid-2">
-<div class="ta-group"><label class="ta-label">TA ID</label><input type="text" id="ta-id" class="ta-input" value="${generatedActivityId}" readonly style="background:#f2f2f7; color:#8e8e93;"></div>
-<div class="ta-group"><label class="ta-label">TA Name</label><input type="text" id="ta-name" class="ta-input" placeholder="Enter an inspiring title..." required></div></div>
-<div class="ta-group" style="margin-bottom:0;"><label class="ta-label">Introduction</label><textarea id="ta-intro" class="ta-textarea" placeholder="Describe the core concept..."></textarea></div></div>
-<div class="ta-card"><div class="ta-section-title">Execution Parameters</div><div class="ta-grid-2">
-<div class="ta-group"><label class="ta-label">Goals <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-goals', 'Outcome...')">+ Add</button></label><div id="ta-goals" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-goals" placeholder="Outcome..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div>
-<div class="ta-group"><label class="ta-label">Hardware <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-materials', 'Material...')">+ Add</button></label><div id="ta-materials" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-materials" placeholder="Material..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div>
-<div class="ta-group"><label class="ta-label">Steps <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-instructions', 'Step...')">+ Add</button></label><div id="ta-instructions" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-instructions" placeholder="Step..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div>
-<div class="ta-group"><label class="ta-label">Observations <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-observations', 'Obs...')">+ Add</button></label><div id="ta-observations" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-observations" placeholder="Obs..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div>
-<div class="ta-group"><label class="ta-label">Tips <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-tips', 'Tip...')">+ Add</button></label><div id="ta-tips" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-tips" placeholder="Tip..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div>
-<div class="ta-group"><label class="ta-label">Other Comments<button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-extensions', 'Bonus...')">+ Add</button></label><div id="ta-extensions" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-extensions" placeholder="Comments"><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div></div>
-<div class="ta-group" style="margin-top:24px;"><label class="ta-label">Resources <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-resources', 'Link...')">+ Add</button></label><div id="ta-resources" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="url" class="ta-input" data-array="ta-resources" placeholder="https://..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div></div><div class="ta-actions">
-<button type="reset" class="ta-btn-secondary">Reset Fields</button>
-<button type="submit" id="taSubmitBtn" class="ta-btn-primary">Save TA ✨</button></div></form></div>`;
-} catch (error) {contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30;">Failed to load module.</div>`;}}
+////////////////////////////////////////////////////////
 import { withHyperCache } from "./dataEngine.js";
+export async function loadTAForm(db, currentUID, contentArea) {
+  contentArea.innerHTML = `<div class="loader">Loading TA form</div>`;
+  try {
+    const { doc, getDoc, getDocs, query, collection, where, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    const userDocSnap = await getDoc(doc(db, "users", currentUID));
+    if (!userDocSnap.exists()) return;
+    
+    const userData = userDocSnap.data();
+    let schoolId = userData.schoolId;
+    
+    if ((userData.role === "atl-incharge" || userData.role === "school-admin") && !schoolId) {
+      const assignmentSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
+      if (!assignmentSnap.empty) schoolId = assignmentSnap.docs[0].data().schoolId;
+    }
+    
+    if (!schoolId) {
+      contentArea.innerHTML = `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No school assigned. Cannot create Tinkering Activities.</div>`;
+      return;
+    }
+    
+    const generatedActivityId = `TA-${Date.now().toString().slice(-7)}`;
+    
+    const taCss = `<style>
+     .ta-wrapper { font-family: -apple-system, sans-serif; max-width: 1040px; margin: 0 auto; padding: 20px 10px 60px 10px; animation: taFadeUp 0.6s ease; }
+     .ta-title { font-size: 2.4rem; font-weight: 800; color: #1c1c1e; margin: 0; letter-spacing: -1.2px; line-height: 1.1; }
+     .ta-subtitle { font-size: 1.05rem; color: #8e8e93; margin-top: 8px; font-weight: 500; }
+     .ta-section-title { font-size: 0.85rem; font-weight: 700; color: #8e8e93; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 20px; display: flex; align-items: center; }
+     .ta-section-title::after { content: ''; flex: 1; height: 1px; background: rgba(60, 60, 67, 0.1); margin-left: 16px; border-radius: 1px; }
+     .ta-label { display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 600; color: #1c1c1e; margin-bottom: 10px; }
+     .ta-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 8px 40px rgba(0,0,0,0.04); border-radius: 28px; padding: 36px; margin-bottom: 32px; transition: 0.4s; }
+     .ta-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+     .ta-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+     .ta-group { margin-bottom: 24px; }
+     .ta-input, .ta-select, .ta-textarea { width: 100%; box-sizing: border-box; background: rgba(118, 118, 128, 0.08); border: 2px solid transparent; border-radius: 16px; padding: 16px 20px; font-size: 1.05rem; outline: none; transition: 0.3s; }
+     .ta-input:focus, .ta-select:focus, .ta-textarea:focus { background: #fff; border-color: #007aff; }
+     .ta-textarea { resize: vertical; min-height: 120px; }
+     .ta-dynamic-container { background: rgba(118, 118, 128, 0.04); border-radius: 20px; padding: 12px; }
+     .ta-dynamic-row { display: flex; gap: 10px; margin-bottom: 8px; background: #fff; border-radius: 14px; padding: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+     .ta-dynamic-row .ta-input { background: transparent; padding: 12px 16px; flex: 1; border-radius: 10px;}
+     .ta-btn-add-sm { background: rgba(0, 122, 255, 0.1); color: #007aff; border: none; border-radius: 20px; padding: 6px 14px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+     .ta-btn-remove { background: #ffe5e5; color: #ff3b30; border: none; border-radius: 10px; width: 44px; font-size: 1.2rem; cursor: pointer; }
+     .ta-actions { display: flex; justify-content: flex-end; gap: 16px; }
+     .ta-btn-primary { background: #007aff; color: #fff; border: none; border-radius: 20px; padding: 18px 40px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.3s; }
+     .ta-btn-secondary { background: rgba(118, 118, 128, 0.12); border: none; border-radius: 20px; padding: 18px 32px; font-size: 1.1rem; font-weight: 600; cursor: pointer; }
+     @keyframes taFadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+     </style>`;
+
+    window.addTADynamicRow = function(containerId, placeholder) {
+     const container = document.getElementById(containerId);
+     const div = document.createElement('div');
+     div.className = 'ta-dynamic-row';
+     div.innerHTML = `<input type="text" class="ta-input" data-array="${containerId}" placeholder="${placeholder}"><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button>`;
+     container.appendChild(div);
+    };
+
+    window.submitTAForm = async function() {
+     const submitBtn = document.getElementById('taSubmitBtn');
+     const originalText = submitBtn.innerHTML;
+     submitBtn.innerHTML = "Saving to Library... ⏳";
+     submitBtn.disabled = true;
+     
+     try {
+       const getArrayData = (arrayId) => Array.from(document.querySelectorAll(`input[data-array="${arrayId}"]`)).map(input => input.value.trim()).filter(val => val !== "");
+       
+       const payload = {
+        schoolId: schoolId,
+        createdBy: currentUID,
+        createdAt: serverTimestamp(),
+        docType: "master", 
+        status: "library", 
+        assignedTo: "unassigned",
+        activityId: document.getElementById('ta-id').value,
+        activityName: document.getElementById('ta-name').value.trim(),
+        subject: document.getElementById('ta-subject').value,
+        topic: document.getElementById('ta-topic').value,
+        subTopic: document.getElementById('ta-subtopic').value,
+        introduction: document.getElementById('ta-intro').value.trim(),
+        goals: getArrayData('ta-goals'),
+        materials: getArrayData('ta-materials'),
+        instructions: getArrayData('ta-instructions'),
+        tips: getArrayData('ta-tips'),
+        observations: getArrayData('ta-observations'),
+        extensions: getArrayData('ta-extensions'),
+        resources: getArrayData('ta-resources')
+       };
+       
+       if (!payload.activityName || !payload.subject) {
+        alert("Activity Name and Subject are required.");
+        submitBtn.innerHTML = originalText; submitBtn.disabled = false; return;
+       }
+       
+       await addDoc(collection(db, "tinkering_activities"), payload);
+       
+       submitBtn.innerHTML = "Saved to Library! ✅";
+       submitBtn.style.background = "#34c759";
+       setTimeout(() => {
+          document.getElementById('taForm').reset();
+          submitBtn.innerHTML = originalText;
+          submitBtn.style.background = "#007aff";
+          submitBtn.disabled = false;
+       }, 2000);
+     } catch (err) { 
+       alert("Failed to save");
+       submitBtn.innerHTML = originalText; submitBtn.disabled = false;
+     }
+    };
+
+    contentArea.innerHTML = `${taCss}<div class="ta-wrapper">
+     <div style="margin-bottom: 32px;"><h2 class="ta-title">Tinkering Activity Form</h2>
+    <p class="ta-subtitle">Design and save master TAs to library.</p></div>
+     <form id="taForm" onsubmit="event.preventDefault(); window.submitTAForm();">
+    <div class="ta-card"><div class="ta-section-title">Core Specifications</div>
+    <div class="ta-grid-3">
+    <div class="ta-group"><label class="ta-label">Subject</label><select id="ta-subject" class="ta-select" required><option value="">Select Domain...</option><option value="Electronics & IoT">Electronics & IoT</option><option value="Robotics">Robotics</option><option value="Coding & AI">Coding & AI</option><option value="3D Design & Printing">3D Design & Printing</option><option value="Science Experiment">Science Experiment</option></select></div>
+    <div class="ta-group"><label class="ta-label">Topic</label><input type="text" id="ta-topic" class="ta-input" placeholder="e.g. Microcontrollers"></div>
+    <div class="ta-group"><label class="ta-label">Sub Topic</label><input type="text" id="ta-subtopic" class="ta-input" placeholder="e.g. Arduino Basics"></div></div>
+    <div class="ta-grid-2">
+    <div class="ta-group"><label class="ta-label">TA ID</label><input type="text" id="ta-id" class="ta-input" value="${generatedActivityId}" readonly style="background:#f2f2f7; color:#8e8e93;"></div>
+    <div class="ta-group"><label class="ta-label">TA Name</label><input type="text" id="ta-name" class="ta-input" placeholder="Enter an inspiring title..." required></div></div>
+    <div class="ta-group" style="margin-bottom:0;"><label class="ta-label">Introduction</label><textarea id="ta-intro" class="ta-textarea" placeholder="Describe the core concept..."></textarea></div></div>
+    <div class="ta-card"><div class="ta-section-title">Execution Parameters</div><div class="ta-grid-2">
+    <div class="ta-group"><label class="ta-label">Goals <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-goals', 'Outcome...')">+ Add</button></label><div id="ta-goals" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-goals" placeholder="Outcome..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div>
+    <div class="ta-group"><label class="ta-label">Hardware <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-materials', 'Material...')">+ Add</button></label><div id="ta-materials" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-materials" placeholder="Material..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div>
+    <div class="ta-group"><label class="ta-label">Steps <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-instructions', 'Step...')">+ Add</button></label><div id="ta-instructions" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-instructions" placeholder="Step..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div>
+    <div class="ta-group"><label class="ta-label">Observations <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-observations', 'Obs...')">+ Add</button></label><div id="ta-observations" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-observations" placeholder="Obs..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div>
+    <div class="ta-group"><label class="ta-label">Tips <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-tips', 'Tip...')">+ Add</button></label><div id="ta-tips" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-tips" placeholder="Tip..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div>
+    <div class="ta-group"><label class="ta-label">Other Comments<button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-extensions', 'Bonus...')">+ Add</button></label><div id="ta-extensions" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="text" class="ta-input" data-array="ta-extensions" placeholder="Comments"><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div></div>
+    <div class="ta-group" style="margin-top:24px;"><label class="ta-label">Resources <button type="button" class="ta-btn-add-sm" onclick="window.addTADynamicRow('ta-resources', 'Link...')">+ Add</button></label><div id="ta-resources" class="ta-dynamic-container"><div class="ta-dynamic-row"><input type="url" class="ta-input" data-array="ta-resources" placeholder="https://..."><button type="button" class="ta-btn-remove" onclick="this.parentElement.remove()">✕</button></div></div></div></div><div class="ta-actions">
+    <button type="reset" class="ta-btn-secondary">Reset Fields</button>
+    <button type="submit" id="taSubmitBtn" class="ta-btn-primary">Save TA ✨</button></div></form></div>`;
+  } catch (error) {
+    contentArea.innerHTML = `<div style="text-align:center; padding: 40px; color:#ff3b30;">Failed to load module.</div>`;
+  }
+}
+
+// ==========================================
+// 2. LOAD TINKERING ACTIVITY REPORT (Nested Subcollections)
+// ==========================================
 export async function loadTAReport(db, currentUID, contentArea) {
-const container = contentArea || document.getElementById("dashboardContent");
-if (!container) return;
-const cacheKeyName = `ta_hub_${currentUID}`;
-window.filterHub = function() {
-const q = document.getElementById('hubSearchInput').value.toLowerCase();
-const domainFilter = document.getElementById('hubDomainFilter').value;
-const topicFilter = document.getElementById('hubTopicFilter').value;
-const subTopicFilter = document.getElementById('hubSubTopicFilter').value;
-const applyFilter = (el) => {
- const matchesSearch = el.dataset.search.includes(q);
- const matchesDomain = (domainFilter === 'all' || el.dataset.subject === domainFilter);
- const matchesTopic = (topicFilter === 'all' || el.dataset.topic === topicFilter);
- const matchesSubTopic = (subTopicFilter === 'all' || el.dataset.subtopic === subTopicFilter);
- el.style.display = (matchesSearch && matchesDomain && matchesTopic && matchesSubTopic) ? 'flex' : 'none';};
-document.querySelectorAll('.library-item').forEach(applyFilter);
-document.querySelectorAll('.ops-item').forEach(applyFilter);};
-window.openHubPanel = function(event, taId) {
-const data = window.taHubData[taId];
-if (!data) return;
-const overlay = document.getElementById('hubOverlay');
-const modal = document.getElementById('hubPanelContainer');
-if (event) {
- const clickX = event.clientX || (window.innerWidth / 2);
- const clickY = event.clientY || (window.innerHeight / 2);
- const windowCenterX = window.innerWidth / 2;
- const windowCenterY = window.innerHeight / 2;
- modal.style.setProperty('--tx', `${clickX - windowCenterX}px`);
- modal.style.setProperty('--ty', `${clickY - windowCenterY}px`);}
-const status = (data.status || 'assigned').toLowerCase();
-let mainContent = '';
-let modalStudentOptions = `<option value="">-- Select a Student --</option>`;
-if (window.taHubStudentList) {
- window.taHubStudentList.forEach(s => {
- modalStudentOptions += `<option value="${s.id}">${s.name} (${s.email})</option>`;});}
-if (status === 'library' && window.taHubUserRole !== 'student') {
- mainContent = `<div style="background: #f8f9fa; padding: 20px; border-radius: 16px; margin-bottom: 32px; border: 1px solid rgba(0,0,0,0.03);">
-<div style="color: #8e8e93; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 8px;">Executive Summary</div>
-<div style="font-size: 1.05rem; color: #3a3a3c; line-height: 1.6; font-weight:500;">${data.introduction || "No summary provided."}</div>
- </div>
- <h4 style="margin: 0 0 12px 0; color: #1c1c1e; font-size: 1.1rem;">Deploy this Activity</h4>
- <select id="assign-student-select" style="width: 100%; padding: 18px; border-radius: 16px; border: 1px solid rgba(0,0,0,0.1); background: #f2f2f7; font-size: 1.05rem; font-weight: 500; margin-bottom: 24px; outline: none; transition: 0.3s;" onfocus="this.style.background='#fff'; this.style.borderColor='#007aff'">
-${modalStudentOptions}</select>
- <button id="btn-deploy-${taId}" onclick="window.deployClone('${taId}')" style="background: linear-gradient(135deg, #007aff, #005bb5); color: #fff; border: none; border-radius: 16px; padding: 20px; width: 100%; font-size: 1.15rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(0,122,255,0.25); transition: transform 0.2s;" onactive="this.style.transform='scale(0.96)'">
-Assign to Innovator 🚀</button>`;
-} else {
- const linkHtml = data.submissionURL ? `<a href="${data.submissionURL}" target="_blank" style="display:flex; justify-content:center; align-items:center; gap:8px; background:linear-gradient(135deg, #f2f2f7, #e5e5ea); color:#007aff; padding: 18px; border-radius: 16px; font-weight: 800; text-decoration: none; margin-bottom: 24px; transition: 0.2s;" onmouseover="this.style.background='#fff'; this.style.boxShadow='0 4px 12px rgba(0,122,255,0.1)'">🔗 Open Evidence Link</a>` : '';
- const notesHtml = data.studentNotes ? `<div style="background: #fff8e6; border-left: 4px solid #f59e0b; padding: 24px; border-radius: 0 16px 16px 0; color: #3a3a3c; font-style: italic; margin-bottom: 32px; font-size:1.05rem; line-height:1.6;">"${data.studentNotes}"</div>` : '';
- let actionButtons = `<div style="padding: 18px; background: #f2f2f7; border-radius: 16px; text-align: center; color: #8e8e93; font-weight: 800; text-transform: uppercase; font-size:1rem;">Status: ${status}</div>`;
- 
- if (window.taHubUserRole !== "student" && status === 'submitted') {
- actionButtons = `
-<div style="display:flex; gap:12px; flex-direction:column;">
-<button onclick="window.updateStatus('${taId}', 'completed')" style="background: linear-gradient(135deg, #34c759, #28a745); color: #fff; border: none; border-radius: 16px; padding: 18px; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(52, 199, 89, 0.25);">Approve & Verify ✅</button>
-<button onclick="window.updateStatus('${taId}', 'assigned')" style="background: rgba(255, 59, 48, 0.1); color: #ff3b30; border: none; border-radius: 16px; padding: 18px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(255, 59, 48, 0.15)'" onmouseout="this.style.background='rgba(255, 59, 48, 0.1)'">Request Revisions ↩️</button>
-</div>`;}
- const assignedName = window.taHubStudentMap ? (window.taHubStudentMap[data.assignedTo] || 'Unknown') : 'Unknown';
- const avatarLtr = assignedName.substring(0,2).toUpperCase();
- mainContent = `
- <div style="display:flex; align-items:center; gap:10px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(0,0,0,0.05);">
-<div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(0,122,255,0.1); color: #007aff; display:flex; justify-content:center; align-items:center; font-weight:800; font-size:1.1rem;">${avatarLtr}</div>
-<div>
-<div style="font-size:0.8rem; color:#8e8e93; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Assigned Innovator</div>
-<div style="font-weight:800; color:#1c1c1e; font-size:1.1rem;">${assignedName}</div>
-</div>
- </div>
- ${linkHtml || '<div style="color:#8e8e93; font-style:italic; margin-bottom:24px; text-align:center; padding:16px; background:#f9f9fb; border-radius:16px;">No evidence link provided yet.</div>'}
- ${notesHtml}
- ${actionButtons}`;}
+  const container = contentArea || document.getElementById("dashboardContent");
+  if (!container) return;
+  const cacheKeyName = `ta_hub_v5_${currentUID}`; // Fresh cache for nested architecture
+  
+  window.filterHub = function() {
+    const q = document.getElementById('hubSearchInput').value.toLowerCase();
+    const domainFilter = document.getElementById('hubDomainFilter').value;
+    const topicFilter = document.getElementById('hubTopicFilter').value;
+    const subTopicFilter = document.getElementById('hubSubTopicFilter').value;
+    const applyFilter = (el) => {
+     const matchesSearch = el.dataset.search.includes(q);
+     const matchesDomain = (domainFilter === 'all' || el.dataset.subject === domainFilter);
+     const matchesTopic = (topicFilter === 'all' || el.dataset.topic === topicFilter);
+     const matchesSubTopic = (subTopicFilter === 'all' || el.dataset.subtopic === subTopicFilter);
+     el.style.display = (matchesSearch && matchesDomain && matchesTopic && matchesSubTopic) ? 'flex' : 'none';};
+    document.querySelectorAll('.library-item').forEach(applyFilter);
+    document.querySelectorAll('.ops-item').forEach(applyFilter);
+  };
+  
+  window.openHubPanel = function(event, taId) {
+    const data = window.taHubData[taId];
+    if (!data) return;
+    const overlay = document.getElementById('hubOverlay');
+    const modal = document.getElementById('hubPanelContainer');
+    if (event) {
+     const clickX = event.clientX || (window.innerWidth / 2);
+     const clickY = event.clientY || (window.innerHeight / 2);
+     const windowCenterX = window.innerWidth / 2;
+     const windowCenterY = window.innerHeight / 2;
+     modal.style.setProperty('--tx', `${clickX - windowCenterX}px`);
+     modal.style.setProperty('--ty', `${clickY - windowCenterY}px`);
+    }
+    
+    const isLibraryItem = !data.isAssignment; // Check internal flag
+    const status = isLibraryItem ? 'library' : (data.status || 'assigned').toLowerCase();
+    
+    let mainContent = '';
+    let modalStudentOptions = `<option value="">-- Select a Student --</option>`;
+    if (window.taHubStudentList) {
+     window.taHubStudentList.forEach(s => {
+     modalStudentOptions += `<option value="${s.id}">${s.name} (${s.email})</option>`;});
+    }
+    
+    if (isLibraryItem && window.taHubUserRole !== 'student') {
+     mainContent = `<div style="background: #f8f9fa; padding: 20px; border-radius: 16px; margin-bottom: 32px; border: 1px solid rgba(0,0,0,0.03);">
+    <div style="color: #8e8e93; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 8px;">Executive Summary</div>
+    <div style="font-size: 1.05rem; color: #3a3a3c; line-height: 1.6; font-weight:500;">${data.introduction || "No summary provided."}</div>
+     </div>
+     <h4 style="margin: 0 0 12px 0; color: #1c1c1e; font-size: 1.1rem;">Deploy this Activity</h4>
+     <select id="assign-student-select" style="width: 100%; padding: 18px; border-radius: 16px; border: 1px solid rgba(0,0,0,0.1); background: #f2f2f7; font-size: 1.05rem; font-weight: 500; margin-bottom: 24px; outline: none; transition: 0.3s;" onfocus="this.style.background='#fff'; this.style.borderColor='#007aff'">
+    ${modalStudentOptions}</select>
+     <button id="btn-deploy-${taId}" onclick="window.deployClone('${taId}')" style="background: linear-gradient(135deg, #007aff, #005bb5); color: #fff; border: none; border-radius: 16px; padding: 20px; width: 100%; font-size: 1.15rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(0,122,255,0.25); transition: transform 0.2s;" onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform='scale(1)'">
+    Assign to Innovator 🚀</button>`;
+    } else {
+     const linkHtml = data.submissionURL ? `<a href="${data.submissionURL}" target="_blank" style="display:flex; justify-content:center; align-items:center; gap:8px; background:linear-gradient(135deg, #f2f2f7, #e5e5ea); color:#007aff; padding: 18px; border-radius: 16px; font-weight: 800; text-decoration: none; margin-bottom: 24px; transition: 0.2s;" onmouseover="this.style.background='#fff'; this.style.boxShadow='0 4px 12px rgba(0,122,255,0.1)'" onmouseout="this.style.background='linear-gradient(135deg, #f2f2f7, #e5e5ea)'; this.style.boxShadow='none'">🔗 Open Evidence Link</a>` : '';
+     const notesHtml = data.studentNotes ? `<div style="background: #fff8e6; border-left: 4px solid #f59e0b; padding: 24px; border-radius: 0 16px 16px 0; color: #3a3a3c; font-style: italic; margin-bottom: 32px; font-size:1.05rem; line-height:1.6;">"${data.studentNotes}"</div>` : '';
+     let actionButtons = `<div style="padding: 18px; background: #f2f2f7; border-radius: 16px; text-align: center; color: #8e8e93; font-weight: 800; text-transform: uppercase; font-size:1rem;">Status: ${status}</div>`;
+     
+     if (window.taHubUserRole !== "student" && status === 'submitted') {
+     actionButtons = `
+    <div style="display:flex; gap:12px; flex-direction:column;">
+    <button onclick="window.updateStatus('${taId}', 'completed')" style="background: linear-gradient(135deg, #34c759, #28a745); color: #fff; border: none; border-radius: 16px; padding: 18px; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(52, 199, 89, 0.25); transition: transform 0.2s;" onmouseover="this.style.transform='scale(0.98)'" onmouseout="this.style.transform='scale(1)'">Approve & Verify ✅</button>
+    <button onclick="window.updateStatus('${taId}', 'assigned')" style="background: rgba(255, 59, 48, 0.1); color: #ff3b30; border: none; border-radius: 16px; padding: 18px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(255, 59, 48, 0.15)'" onmouseout="this.style.background='rgba(255, 59, 48, 0.1)'">Request Revisions ↩️</button>
+    </div>`;}
+    
+     const assignedName = window.taHubStudentMap ? (window.taHubStudentMap[data.assignedTo] || 'Unknown') : 'Unknown';
+     const avatarLtr = assignedName.substring(0,2).toUpperCase();
+     mainContent = `
+     <div style="display:flex; align-items:center; gap:10px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(0,0,0,0.05);">
+    <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(0,122,255,0.1); color: #007aff; display:flex; justify-content:center; align-items:center; font-weight:800; font-size:1.1rem;">${avatarLtr}</div>
+    <div>
+    <div style="font-size:0.8rem; color:#8e8e93; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Assigned Innovator</div>
+    <div style="font-weight:800; color:#1c1c1e; font-size:1.1rem;">${assignedName}</div>
+    </div>
+     </div>
+     ${linkHtml || '<div style="color:#8e8e93; font-style:italic; margin-bottom:24px; text-align:center; padding:16px; background:#f9f9fb; border-radius:16px;">No evidence link provided yet.</div>'}
+     ${notesHtml}
+     ${actionButtons}`;}
+    
+    modal.innerHTML = `
+     <div style="padding: 24px 32px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.95); position: sticky; top: 0; z-index: 10;">
+     <h2 style="margin: 0; font-size: 1.1rem; color: #8e8e93; text-transform: uppercase; letter-spacing: 1px;">${status === 'library' ? 'Activity Menu' : 'Intel Review'}</h2>
+     <button onclick="window.closeHubPanel()" style="background: #f2f2f7; border: none; width: 36px; height: 36px; border-radius: 18px; font-size: 1.2rem; cursor: pointer; color: #8e8e93; display:flex; justify-content:center; align-items:center; transition:0.2s;" onmouseover="this.style.background='#e5e5ea'; this.style.color='#1c1c1e'" onmouseout="this.style.background='#f2f2f7'; this.style.color='#8e8e93'">✕</button>
+     </div>
+     <div class="hub-modal-body">
+     <div style="font-size: 0.85rem; color: #007aff; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">
+     ${data.subject || 'Domain'} ${data.topic ? ` • ${data.topic}` : ''}
+     </div>
+     <h3 style="font-size: 2.2rem; margin: 0 0 8px 0; letter-spacing: -0.8px; color: #1c1c1e; line-height: 1.1;">${data.activityName}</h3>
+     <div style="color: #8e8e93; font-size: 0.9rem; margin-bottom: 32px; font-family: monospace;">SYS-ID: ${data.activityId || taId}</div>
+     ${mainContent}
+     </div>
+    `;
+    
+    overlay.style.display = 'flex';
+    void modal.offsetWidth; 
+    overlay.classList.add('active');
+  };
+  
+  window.closeHubPanel = function() {
+    const overlay = document.getElementById('hubOverlay');
+    overlay.classList.remove('active');
+    setTimeout(() => overlay.style.display = 'none', 450); 
+  };
+  
+  // DEPLOY CLONE: Sends task to the specific nested 'assignments' subcollection of the TA
+  window.deployClone = async function(templateId) {
+    const studentId = document.getElementById('assign-student-select').value;
+    if (!studentId) return alert("Please select a student.");
+    const btn = document.getElementById(`btn-deploy-${templateId}`);
+    btn.innerHTML = "Cloning... ⏳"; btn.disabled = true;
+    try {
+     const { collection, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+     
+     const templateData = { ...window.taHubData[templateId] };
+     delete templateData.isAssignment; // Clear internal tracking flag before saving
+     
+     const newInstance = { 
+         ...templateData, 
+         docType: 'assigned', 
+         assignedTo: studentId, 
+         status: 'assigned', 
+         deployedAt: serverTimestamp(), 
+         parentTemplateId: templateId 
+     };
+     
+     // Route: tinkering_activities -> {templateId} -> assignments -> {new_doc}
+     await addDoc(collection(db, "tinkering_activities", templateId, "assignments"), newInstance);
+     
+     window[`forceRefresh_${cacheKeyName}`] = true; 
+     window.closeHubPanel(); 
+     loadTAReport(db, currentUID, contentArea); 
+    } catch(err) { alert("Assignment failed."); btn.innerHTML = "Assign to Innovator 🚀"; btn.disabled = false; }
+  };
+  
+  // UPDATE STATUS: Dynamically builds the exact document path based on if it's nested
+  window.updateStatus = async function(taId, newStatus) {
+    if (window.taHubUserRole === 'student') return;
+    try {
+     const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+     const data = window.taHubData[taId];
+     
+     // Resolve exact path using parent ID if it is an assignment
+     let docRef;
+     if (data.isAssignment) {
+         docRef = doc(db, "tinkering_activities", data.parentTemplateId, "assignments", taId);
+     } else {
+         docRef = doc(db, "tinkering_activities", taId);
+     }
 
-modal.innerHTML = `
- <div style="padding: 24px 32px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.95); position: sticky; top: 0; z-index: 10;">
- <h2 style="margin: 0; font-size: 1.1rem; color: #8e8e93; text-transform: uppercase; letter-spacing: 1px;">${status === 'library' ? 'Activity Menu' : 'Intel Review'}</h2>
- <button onclick="window.closeHubPanel()" style="background: #f2f2f7; border: none; width: 36px; height: 36px; border-radius: 18px; font-size: 1.2rem; cursor: pointer; color: #8e8e93; display:flex; justify-content:center; align-items:center; transition:0.2s;" onmouseover="this.style.background='#e5e5ea'">✕</button>
- </div>
- <div class="hub-modal-body">
- <div style="font-size: 0.85rem; color: #007aff; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">
- ${data.subject || 'Domain'} ${data.topic ? ` • ${data.topic}` : ''}
- </div>
- <h3 style="font-size: 2.2rem; margin: 0 0 8px 0; letter-spacing: -0.8px; color: #1c1c1e; line-height: 1.1;">${data.activityName}</h3>
- <div style="color: #8e8e93; font-size: 0.9rem; margin-bottom: 32px; font-family: monospace;">SYS-ID: ${data.activityId || taId}</div>
- ${mainContent}
- </div>
-`;
+     await updateDoc(docRef, { status: newStatus });
+     
+     window[`forceRefresh_${cacheKeyName}`] = true;
+     window.closeHubPanel();
+     loadTAReport(db, currentUID, contentArea);
+    } catch(err) { console.error("Update failed:", err); alert("Failed to update status."); }
+  };
+  
+  await withHyperCache({
+    cacheKey: cacheKeyName,
+    container: container,
+    loadingHtml: `<div class="loader" style="text-align:center; padding:50px; color:#8e8e93; font-weight:600;">Loading Tinkering Activities... <span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span></div><style>@keyframes spin { 100% { transform:rotate(360deg); } }</style>`,
+    
+    executeFetchAndBuild: async () => {
+     const { collection, query, where, getDocs, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    
+     const userDocSnap = await getDoc(doc(db, "users", currentUID));
+     if (!userDocSnap.exists()) throw new Error("User not found");
+     const userData = userDocSnap.data();
+     const userRole = userData.role;
+     let schoolId = userData.schoolId;
+    
+     if ((userRole === "atl-incharge" || userRole === "school-admin") && !schoolId) {
+        const assignmentSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
+        if (!assignmentSnap.empty) schoolId = assignmentSnap.docs[0].data().schoolId;
+     }
+    
+     if (!schoolId) {
+        return { html: `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No school assigned.</div>` };
+     }
+    
+     // Fetch Master Library TAs
+     const librarySnap = await getDocs(query(collection(db, "tinkering_activities"), where("schoolId", "==", schoolId)));
+     const studentsSnap = await getDocs(query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", schoolId)));
+     
+     // Iterate through all Masters to retrieve their nested 'assignments' subcollections flawlessly
+     const libraryDocs = [];
+     const assignmentPromises = [];
+     librarySnap.forEach(masterDoc => {
+         libraryDocs.push({ id: masterDoc.id, ...masterDoc.data() });
+         assignmentPromises.push(getDocs(collection(db, "tinkering_activities", masterDoc.id, "assignments")));
+     });
+     
+     const assignmentsSnaps = await Promise.all(assignmentPromises);
 
-overlay.style.display = 'flex';
-void modal.offsetWidth; 
-overlay.classList.add('active');
-};
+     let studentMap = {};
+     let studentList = [];
+     studentsSnap.forEach(d => { 
+        studentMap[d.id] = d.data().name || "Unknown"; 
+        studentList.push({ id: d.id, name: d.data().name || 'Unknown', email: d.data().email || '' });
+     });
+    
+     let libraryHtml = '';
+     let operationsHtml = '';
+     let domains = new Set();
+     let topics = new Set();
+     let subTopics = new Set();
+     const freshTaHubData = {};
+    
+     // Map Library Data
+     libraryDocs.forEach(data => {
+        freshTaHubData[data.id] = { ...data, isAssignment: false };
+        
+        const safeSubject = data.subject || 'Uncategorized';
+        const safeTopic = data.topic || 'Uncategorized';
+        const safeSubTopic = data.subTopic || data.subtopic || 'Uncategorized'; 
+        domains.add(safeSubject); topics.add(safeTopic); subTopics.add(safeSubTopic);
+    
+        libraryHtml += `
+        <div class="hub-card library-item" data-search="${(data.activityName+safeSubject+safeTopic+safeSubTopic).toLowerCase()}" data-subject="${safeSubject}" data-topic="${safeTopic}" data-subtopic="${safeSubTopic}" onclick="window.openHubPanel(event, '${data.id}')">
+        <div>
+        <div style="font-size: 0.75rem; font-weight: 800; color: #8e8e93; text-transform: uppercase; margin-bottom: 4px;">Library • ${safeSubject}</div>
+        <h3 style="margin: 0; font-size: 1.2rem; color: #1c1c1e;">${data.activityName}</h3>
+        <div style="font-size: 0.8rem; color: #8e8e93; margin-top:4px;">${safeTopic} &rsaquo; ${safeSubTopic}</div>
+        </div>
+        <div style="background: rgba(0,122,255,0.1); color: #007aff; padding: 8px 16px; border-radius: 12px; font-weight: 700; font-size: 0.85rem;">View & Assign ↗</div>
+        </div>`;
+     });
 
-window.closeHubPanel = function() {
-const overlay = document.getElementById('hubOverlay');
-overlay.classList.remove('active');
-setTimeout(() => overlay.style.display = 'none', 450); 
-};
+     // Map Nested Subcollection Data (Active Operations)
+     assignmentsSnaps.forEach(snap => {
+         snap.forEach(docSnap => {
+            const data = docSnap.data();
+            freshTaHubData[docSnap.id] = { ...data, isAssignment: true, parentTemplateId: data.parentTemplateId };
+            
+            const safeSubject = data.subject || 'Uncategorized';
+            const safeTopic = data.topic || 'Uncategorized';
+            const safeSubTopic = data.subTopic || data.subtopic || 'Uncategorized';
+            const status = (data.status || 'assigned').toLowerCase(); 
+            domains.add(safeSubject); topics.add(safeTopic); subTopics.add(safeSubTopic);
 
-window.deployClone = async function(templateId) {
-const studentId = document.getElementById('assign-student-select').value;
-if (!studentId) return alert("Please select a student.");
-const btn = document.getElementById(`btn-deploy-${templateId}`);
-btn.innerHTML = "Cloning... ⏳"; btn.disabled = true;
-try {
- const { collection, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
- const newInstance = { ...window.taHubData[templateId], assignedTo: studentId, status: 'assigned', deployedAt: serverTimestamp(), parentTemplateId: templateId };
- await addDoc(collection(db, "tinkering_activities"), newInstance);
- 
- window[`forceRefresh_${cacheKeyName}`] = true; 
- window.closeHubPanel(); 
- loadTAReport(db, currentUID, contentArea); 
-} catch(err) { alert("Assignment failed."); btn.innerHTML = "Assign to Innovator 🚀"; btn.disabled = false; }
-};
+            const assignedName = studentMap[data.assignedTo] || "Unknown";
+            let badgeStyle = "background:rgba(142,142,147,0.1); color:#8e8e93;"; 
+            if (status === 'submitted') badgeStyle = "background:rgba(255,149,0,0.1); color:#ff9500;"; 
+            if (status === 'completed') badgeStyle = "background:rgba(52,199,89,0.1); color:#34c759;"; 
 
-window.updateStatus = async function(taId, newStatus) {
-if (window.taHubUserRole === 'student') return;
-try {
- const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
- await updateDoc(doc(db, "tinkering_activities", taId), { status: newStatus });
- window[`forceRefresh_${cacheKeyName}`] = true;
- window.closeHubPanel();
- loadTAReport(db, currentUID, contentArea);
-} catch(err) { console.error(err); }};
-await withHyperCache({
-cacheKey: cacheKeyName,
-container: container,
-loadingHtml: `<div class="loader" style="text-align:center; padding:50px; color:#8e8e93; font-weight:600;">Loading Tinkering Activities... <span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span></div><style>@keyframes spin { 100% { transform:rotate(360deg); } }</style>`,
-
-executeFetchAndBuild: async () => {
- const { collection, query, where, getDocs, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-
- const userDocSnap = await getDoc(doc(db, "users", currentUID));
- if (!userDocSnap.exists()) throw new Error("User not found");
- const userData = userDocSnap.data();
- const userRole = userData.role;
- let schoolId = userData.schoolId;
-
- if ((userRole === "atl-incharge" || userRole === "school-admin") && !schoolId) {
- const assignmentSnap = await getDocs(query(collection(db, "inchargeSchoolAssignments"), where("inchargeId", "==", currentUID)));
- if (!assignmentSnap.empty) schoolId = assignmentSnap.docs[0].data().schoolId;
- }
-
- if (!schoolId) {
- return { html: `<div style="padding:40px; text-align:center; color:#ff3b30; font-weight:600;">⚠️ No school assigned.</div>` };
- }
-
- let taQuery = userRole === "student" 
- ? query(collection(db, "tinkering_activities"), where("schoolId", "==", schoolId), where("assignedTo", "==", currentUID))
- : query(collection(db, "tinkering_activities"), where("schoolId", "==", schoolId));
-
- const [taSnap, studentsSnap] = await Promise.all([
- getDocs(taQuery),
- getDocs(query(collection(db, "users"), where("role", "==", "student"), where("schoolId", "==", schoolId)))
- ]);
- 
- let studentMap = {};
- let studentList = [];
- studentsSnap.forEach(doc => { 
- studentMap[doc.id] = doc.data().name || "Unknown"; 
- studentList.push({ id: doc.id, name: doc.data().name || 'Unknown', email: doc.data().email || '' });
- });
-
- let libraryHtml = '';
- let operationsHtml = '';
- let domains = new Set();
- let topics = new Set();
- let subTopics = new Set();
- 
- const freshTaHubData = {};
-
- taSnap.forEach(docSnap => {
- const data = docSnap.data();
- const taId = docSnap.id;
- freshTaHubData[taId] = data; 
- 
- const status = (data.status || 'assigned').toLowerCase();
- const safeSubject = data.subject || 'Uncategorized';
- const safeTopic = data.topic || 'Uncategorized';
- const safeSubTopic = data.subTopic || data.subtopic || 'Uncategorized'; 
- domains.add(safeSubject);
- topics.add(safeTopic);
- subTopics.add(safeSubTopic);
- if (status === 'library' || data.assignedTo === 'unassigned') {
-libraryHtml += `
-<div class="hub-card library-item" data-search="${(data.activityName+safeSubject+safeTopic+safeSubTopic).toLowerCase()}" data-subject="${safeSubject}" data-topic="${safeTopic}" data-subtopic="${safeSubTopic}" onclick="window.openHubPanel(event, '${taId}')">
-<div>
- <div style="font-size: 0.75rem; font-weight: 800; color: #8e8e93; text-transform: uppercase; margin-bottom: 4px;">Library • ${safeSubject}</div>
- <h3 style="margin: 0; font-size: 1.2rem; color: #1c1c1e;">${data.activityName}</h3>
- <div style="font-size: 0.8rem; color: #8e8e93; margin-top:4px;">${safeTopic} &rsaquo; ${safeSubTopic}</div>
-</div>
-<div style="background: rgba(0,122,255,0.1); color: #007aff; padding: 8px 16px; border-radius: 12px; font-weight: 700; font-size: 0.85rem;">View & Assign ↗</div>
-</div>`;
- } else {
-const assignedName = studentMap[data.assignedTo] || "Unknown";
-let badgeStyle = "background:rgba(142,142,147,0.1); color:#8e8e93;"; 
-if (status === 'submitted') badgeStyle = "background:rgba(255,149,0,0.1); color:#ff9500;"; 
-if (status === 'completed') badgeStyle = "background:rgba(52,199,89,0.1); color:#34c759;"; 
-
-operationsHtml += `
-<div class="hub-card ops-item" data-search="${(data.activityName+assignedName+safeSubject+safeTopic).toLowerCase()}" data-subject="${safeSubject}" data-topic="${safeTopic}" data-subtopic="${safeSubTopic}" onclick="window.openHubPanel(event, '${taId}')">
-<div>
- <h3 style="margin: 0 0 4px 0; font-size: 1.1rem; color: #1c1c1e;">${data.activityName}</h3>
- <div style="color: #8e8e93; font-size: 0.9rem;">Innovator: <span style="font-weight:600; color:#1c1c1e;">${assignedName}</span></div>
-</div>
-<div style="${badgeStyle} padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase;">${status}</div>
-</div>`;
- }
- });
- let domainFilterOptions = `<option value="all">All Domains</option>`;
- Array.from(domains).sort().forEach(domain => { domainFilterOptions += `<option value="${domain}">${domain}</option>`; });
-
- let topicFilterOptions = `<option value="all">All Topics</option>`;
- Array.from(topics).sort().forEach(t => { topicFilterOptions += `<option value="${t}">${t}</option>`; });
-
- let subTopicFilterOptions = `<option value="all">All Sub-Topics</option>`;
- Array.from(subTopics).sort().forEach(st => { subTopicFilterOptions += `<option value="${st}">${st}</option>`; });
- const finalHtmlPayload = `
- <style>
-.hub-wrapper { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; max-width: 1040px; margin: 0 auto; padding: 40px 10px; animation: hubFadeIn 0.5s ease; }
-
-/* Upgraded Flexbox for the new Filters */
-.hub-controls { display: flex; gap: 12px; margin-bottom: 40px; flex-wrap: wrap; }
-.hub-search-container { flex: 1 1 100%; }
-.hub-filter-container { flex: 1; display:flex; gap: 12px; }
-@media(max-width: 768px) { .hub-filter-container { flex-direction: column; } }
-
-.hub-search { width: 100%; box-sizing: border-box; background: #fff; border: 1px solid rgba(0,0,0,0.1); border-radius: 16px; padding: 16px 24px; font-size: 1.05rem; color: #1c1c1e; outline: none; transition: 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.02); font-weight: 500; }
-.hub-search:focus { border-color: #007aff; box-shadow: 0 8px 24px rgba(0,122,255,0.15); }
-
-.hub-filter { flex: 1; appearance: none; background: #fff url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") no-repeat right 16px center; background-size: 16px; border: 1px solid rgba(0,0,0,0.1); border-radius: 16px; padding: 16px 48px 16px 20px; font-size: 0.95rem; color: #1c1c1e; outline: none; cursor: pointer; transition: 0.3s; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.02);}
-.hub-filter:focus { border-color: #007aff; box-shadow: 0 8px 24px rgba(0,122,255,0.15); }
-
-.hub-card { background: #fff; border-radius: 20px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.04); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s; }
-.hub-card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 12px 24px rgba(0,0,0,0.06); border-color: rgba(0,122,255,0.2); }
-.hub-empty { text-align: center; padding: 40px; background: rgba(0,0,0,0.02); border-radius: 20px; color: #8e8e93; font-weight: 500; font-style: italic; }
-
-.hub-mac-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0); backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); z-index: 9999; display: none; justify-content: center; align-items: center; transition: background 0.4s ease, backdrop-filter 0.4s ease; }
-.hub-mac-overlay.active { background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-
-.hub-mac-modal { 
-background: rgba(255,255,255,0.98); backdrop-filter: blur(40px);
-width: 92%; max-width: 600px; max-height: 85vh; 
-box-shadow: 0 40px 80px rgba(0,0,0,0.25), inset 0 2px 4px rgba(255,255,255,1); 
-border: 1px solid rgba(255,255,255,0.8);
-display: flex; flex-direction: column; overflow: hidden;
-transform-origin: center center; 
-opacity: 0; border-radius: 60px;
-transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0.01); 
-transition: transform 0.5s cubic-bezier(0.32, 0.08, 0.24, 1), opacity 0.3s ease, border-radius 0.5s cubic-bezier(0.32, 0.08, 0.24, 1);
-}
-
-.hub-mac-overlay.active .hub-mac-modal { transform: translate(0px, 0px) scale(1); opacity: 1; border-radius: 28px; }
-.hub-modal-body { flex: 1; overflow-y: auto; padding: 32px; scrollbar-width: none; }
-.hub-modal-body::-webkit-scrollbar { display: none; }
-@keyframes hubFadeIn { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
- </style>
- 
- <div class="hub-wrapper">
-<h1 style="font-size: 2.8rem; font-weight: 800; margin: 0 0 10px 0; color: #1c1c1e; letter-spacing: -1px; display:flex; align-items:center;">Mission Hub</h1>
-<p style="font-size: 1.15rem; color: #8e8e93; margin-bottom: 32px; font-weight: 500;">Manage Tinkering Activities, track telemetry, and deploy tasks.</p>
-
-<div class="hub-controls">
-<div class="hub-search-container">
-<input type="text" id="hubSearchInput" class="hub-search" placeholder="Search activities, subjects, or innovators..." onkeyup="window.filterHub()">
-</div>
-<div class="hub-filter-container">
-<select id="hubDomainFilter" class="hub-filter" onchange="window.filterHub()">
- ${domainFilterOptions}
-</select>
-<select id="hubTopicFilter" class="hub-filter" onchange="window.filterHub()">
- ${topicFilterOptions}
-</select>
-<select id="hubSubTopicFilter" class="hub-filter" onchange="window.filterHub()">
- ${subTopicFilterOptions}
-</select>
-</div>
-</div>
-
-${userRole !== 'student' ? `<h3 style="font-size: 1.3rem; color: #1c1c1e; margin-bottom: 20px;">Tinkering Activities Library 📘</h3>${libraryHtml || '<div class="hub-empty">No Library Data Found.</div>'}<div style="height: 40px;"></div>` : ''}
-
- </div>
-
- <div id="hubOverlay" class="hub-mac-overlay" onclick="if(event.target===this) window.closeHubPanel()">
-<div class="hub-mac-modal" id="hubPanelContainer"></div>
- </div>`;
- return {
- html: finalHtmlPayload,
- globals: { 
-taHubData: freshTaHubData,
-taHubUserRole: userRole,
-taHubStudentList: studentList,
-taHubStudentMap: studentMap
- } 
- };
-}
-});
+            operationsHtml += `
+            <div class="hub-card ops-item" data-search="${(data.activityName+assignedName+safeSubject+safeTopic).toLowerCase()}" data-subject="${safeSubject}" data-topic="${safeTopic}" data-subtopic="${safeSubTopic}" onclick="window.openHubPanel(event, '${docSnap.id}')">
+            <div>
+            <h3 style="margin: 0 0 4px 0; font-size: 1.1rem; color: #1c1c1e;">${data.activityName}</h3>
+            <div style="color: #8e8e93; font-size: 0.9rem;">Innovator: <span style="font-weight:600; color:#1c1c1e;">${assignedName}</span></div>
+            </div>
+            <div style="${badgeStyle} padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase;">${status}</div>
+            </div>`;
+         });
+     });
+    
+     let domainFilterOptions = `<option value="all">All Domains</option>`;
+     Array.from(domains).sort().forEach(domain => { domainFilterOptions += `<option value="${domain}">${domain}</option>`; });
+    
+     let topicFilterOptions = `<option value="all">All Topics</option>`;
+     Array.from(topics).sort().forEach(t => { topicFilterOptions += `<option value="${t}">${t}</option>`; });
+    
+     let subTopicFilterOptions = `<option value="all">All Sub-Topics</option>`;
+     Array.from(subTopics).sort().forEach(st => { subTopicFilterOptions += `<option value="${st}">${st}</option>`; });
+     
+     const finalHtmlPayload = `
+     <style>
+    .hub-wrapper { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; max-width: 1040px; margin: 0 auto; padding: 40px 10px; animation: hubFadeIn 0.5s ease; }
+    .hub-controls { display: flex; gap: 12px; margin-bottom: 40px; flex-wrap: wrap; }
+    .hub-search-container { flex: 1 1 100%; }
+    .hub-filter-container { flex: 1; display:flex; gap: 12px; }
+    @media(max-width: 768px) { .hub-filter-container { flex-direction: column; } }
+    .hub-search { width: 100%; box-sizing: border-box; background: #fff; border: 1px solid rgba(0,0,0,0.1); border-radius: 16px; padding: 16px 24px; font-size: 1.05rem; color: #1c1c1e; outline: none; transition: 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.02); font-weight: 500; }
+    .hub-search:focus { border-color: #007aff; box-shadow: 0 8px 24px rgba(0,122,255,0.15); }
+    .hub-filter { flex: 1; appearance: none; background: #fff url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") no-repeat right 16px center; background-size: 16px; border: 1px solid rgba(0,0,0,0.1); border-radius: 16px; padding: 16px 48px 16px 20px; font-size: 0.95rem; color: #1c1c1e; outline: none; cursor: pointer; transition: 0.3s; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.02);}
+    .hub-filter:focus { border-color: #007aff; box-shadow: 0 8px 24px rgba(0,122,255,0.15); }
+    .hub-card { background: #fff; border-radius: 20px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.04); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s; }
+    .hub-card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 12px 24px rgba(0,0,0,0.06); border-color: rgba(0,122,255,0.2); }
+    .hub-empty { text-align: center; padding: 40px; background: rgba(0,0,0,0.02); border-radius: 20px; color: #8e8e93; font-weight: 500; font-style: italic; }
+    .hub-mac-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0); backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); z-index: 9999; display: none; justify-content: center; align-items: center; transition: background 0.4s ease, backdrop-filter 0.4s ease; }
+    .hub-mac-overlay.active { background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .hub-mac-modal { 
+    background: rgba(255,255,255,0.98); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    width: 92%; max-width: 600px; max-height: 85vh; 
+    box-shadow: 0 40px 80px rgba(0,0,0,0.25), inset 0 2px 4px rgba(255,255,255,1); 
+    border: 1px solid rgba(255,255,255,0.8);
+    display: flex; flex-direction: column; overflow: hidden;
+    transform-origin: center center; 
+    opacity: 0; border-radius: 60px;
+    transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0.01); 
+    transition: transform 0.5s cubic-bezier(0.32, 0.08, 0.24, 1), opacity 0.3s ease, border-radius 0.5s cubic-bezier(0.32, 0.08, 0.24, 1);
+    }
+    .hub-mac-overlay.active .hub-mac-modal { transform: translate(0px, 0px) scale(1); opacity: 1; border-radius: 28px; }
+    .hub-modal-body { flex: 1; overflow-y: auto; padding: 32px; scrollbar-width: none; }
+    .hub-modal-body::-webkit-scrollbar { display: none; }
+    @keyframes hubFadeIn { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
+    @media (max-width: 768px) { .hub-mac-modal { width: 95%; max-height: 90vh; } .hub-modal-body { padding: 24px; } }
+     </style>
+     
+     <div class="hub-wrapper">
+    <h1 style="font-size: 2.8rem; font-weight: 800; margin: 0 0 10px 0; color: #1c1c1e; letter-spacing: -1px; display:flex; align-items:center;">Mission Hub</h1>
+    <p style="font-size: 1.15rem; color: #8e8e93; margin-bottom: 32px; font-weight: 500;">Manage Tinkering Activities, track telemetry, and deploy tasks.</p>
+    
+    <div class="hub-controls">
+    <div class="hub-search-container">
+    <input type="text" id="hubSearchInput" class="hub-search" placeholder="Search activities, subjects, or innovators..." onkeyup="window.filterHub()">
+    </div>
+    <div class="hub-filter-container">
+    <select id="hubDomainFilter" class="hub-filter" onchange="window.filterHub()">
+     ${domainFilterOptions}
+    </select>
+    <select id="hubTopicFilter" class="hub-filter" onchange="window.filterHub()">
+     ${topicFilterOptions}
+    </select>
+    <select id="hubSubTopicFilter" class="hub-filter" onchange="window.filterHub()">
+     ${subTopicFilterOptions}
+    </select>
+    </div>
+    </div>
+    
+    ${userRole !== 'student' ? `<h3 style="font-size: 1.3rem; color: #1c1c1e; margin-bottom: 20px;">Tinkering Activities Library 📘</h3>${libraryHtml || '<div class="hub-empty">No Library Data Found.</div>'}<div style="height: 40px;"></div>` : ''}
+    
+    <h3 style="font-size: 1.3rem; color: #1c1c1e; margin-bottom: 20px;">Active Operations 🚀</h3>
+    ${operationsHtml || '<div class="hub-empty">No assigned activities right now.</div>'}
+    
+     </div>
+    
+     <div id="hubOverlay" class="hub-mac-overlay" onclick="if(event.target===this) window.closeHubPanel()">
+    <div class="hub-mac-modal" id="hubPanelContainer"></div>
+     </div>`;
+     return {
+     html: finalHtmlPayload,
+     globals: { 
+    taHubData: freshTaHubData,
+    taHubUserRole: userRole,
+    taHubStudentList: studentList,
+    taHubStudentMap: studentMap
+     } 
+     };
+    }
+  });
 }
 export async function loadPersonnelManagement(db, currentUID, contentArea) {
 contentArea.innerHTML = `<div class="loader" style="text-align:center; padding:50px; color:#8e8e93; font-weight:600;">Loading</div>`;

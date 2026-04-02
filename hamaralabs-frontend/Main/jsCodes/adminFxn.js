@@ -639,7 +639,7 @@ export async function loadStudentRegistration(db, contentArea) {
         <div class="saas-field"><label class="saas-label">Career Aspiration</label><input type="text" id="regAspiration" class="saas-input" placeholder="e.g. AI Researcher"></div>
         <div class="saas-field"><label class="saas-label">Leadership Status</label>
           <div class="saas-toggle-wrapper"><span style="font-size:0.95rem;color:var(--text-main);font-weight:500;">Assign as Team Leader</span><input type="checkbox" id="regLeader" class="saas-toggle"></div></div>
-        <div class="saas-field saas-col-span-2"><label class="saas-label">Additional Comments</label><input type="text" id="regComments" class="saas-input" placeholder="Achievements, prior courses, special needs..."></div>
+        <div class="saas-field saas-col-span-2"><label class="saas-label">Interests</label><input type="text" id="regComments" class="saas-input" placeholder="Mention about the studnet's interests.."></div>
         <div class="saas-field saas-col-span-2">
           <label class="saas-label">Skill Tags</label>
           <div class="saas-tag-input-group">

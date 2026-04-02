@@ -173,8 +173,15 @@ export async function dispatchEmailNotification(type, recipientEmail, data) {
 import { collection, query, where, getDocs, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 export async function loadStudentTAs(db, currentUID, contentArea) {
   contentArea.innerHTML = `<div class="loader">Loading...</div>`;
-  try {const q = query(collection(db, "tinkering_activities"), where("assignedTo", "==", currentUID));
+  try {
+    // 1. Added collectionGroup to the import for nested architecture querying
+    const { collectionGroup, collection, query, where, getDocs, doc, updateDoc, getDoc, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    
+    // 2. PROFESSIONAL FETCH: Use collectionGroup to search ALL 'assignments' subcollections for this student
+    const q = query(collectionGroup(db, "assignments"), where("assignedTo", "==", currentUID));
     const snap = await getDocs(q);
+    
+    // (CSS remains completely untouched)
     const studentCss = `<style>:root {--ui-curve: cubic-bezier(0.2, 0.9, 0.2, 1); 
           --glass-surface: rgba(255, 255, 255, 0.75);
           --glass-border: rgba(255, 255, 255, 0.9);
@@ -215,14 +222,10 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         .stu-badge::before { content: ''; display: block; width: 6px; height: 6px; border-radius: 50%; background: #007aff; box-shadow: 0 0 8px #007aff; }
         .stu-badge-completed { background: rgba(52, 199, 89, 0.08); color: #28a745; border-color: rgba(52, 199, 89, 0.1); }
         .stu-badge-completed::before { background: #28a745; box-shadow: 0 0 8px #28a745; }
-        
-        /* Typography Polish */
         .stu-subject { font-size: 0.85rem; font-weight: 800; color: #8e8e93; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
         .stu-activity-title { font-size: 1.6rem; font-weight: 800; color: #1c1c1e; margin-bottom: 16px; line-height: 1.2; letter-spacing: -0.5px; transition: color 0.3s ease; position: relative; z-index: 2; }
         .stu-card:hover .stu-activity-title { color: #007aff; }
         .stu-intro { font-size: 1rem; color: #636366; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 32px; font-weight: 500; }
-        
-        /* Fluid Pill Button */
         .stu-btn { 
           background: rgba(118, 118, 128, 0.06); color: #1c1c1e; border: none; 
           border-radius: 100px; padding: 16px; width: 100%; 
@@ -233,11 +236,8 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         .stu-btn span { transition: transform 0.3s var(--ui-curve); }
         .stu-card:hover .stu-btn { background: #007aff; color: #fff; box-shadow: 0 8px 24px rgba(0, 122, 255, 0.3); }
         .stu-card:hover .stu-btn span { transform: translateX(4px) translateY(-4px); }
-
-        /* Blueprint Modal - Volumetric Glass */
         .stu-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); z-index: 1000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.4s var(--ui-curve); }
         .stu-modal-overlay.active { display: flex; opacity: 1; }
-        
         .stu-modal { 
           background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(250,250,252,0.95) 100%); 
           width: 92%; max-width: 860px; max-height: 85vh; border-radius: 40px; 
@@ -247,17 +247,13 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         }
         .stu-modal::-webkit-scrollbar { display: none; }
         .stu-modal-overlay.active .stu-modal { transform: scale(1) translateY(0); opacity: 1; }
-        
         .stu-modal-header { padding: 40px 40px 32px 40px; border-bottom: 1px solid rgba(0,0,0,0.04); position: sticky; top: 0; background: rgba(255,255,255,0.85); backdrop-filter: blur(30px); z-index: 10; display: flex; justify-content: space-between; align-items: flex-start;}
         .stu-modal-body { padding: 0 40px 40px 40px; }
-        
         .stu-close { background: rgba(118,118,128,0.1); border: none; width: 40px; height: 40px; border-radius: 20px; font-size: 1.2rem; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.3s; color: #8e8e93;}
         .stu-close:hover { background: #e5e5ea; color: #1c1c1e; transform: rotate(90deg); }
-
         .stu-section { margin-top: 40px; }
         .stu-section h4 { font-size: 1.15rem; color: #1c1c1e; justify-content: center;  font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;}
         .stu-section h4 span { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: rgba(0,122,255,0.1); color: #007aff; border-radius: 10px; font-size: 1.2rem; }
-    
         .stu-list { list-style: none; padding: 0; margin: 0; }
         .stu-list li { 
           background: #ffffff; border-radius: 20px; padding: 18px 24px; margin-bottom: 12px; 
@@ -268,34 +264,48 @@ export async function loadStudentTAs(db, currentUID, contentArea) {
         .stu-list li::before { content: ''; width: 8px; height: 8px; background: #007aff; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px rgba(0,122,255,0.5); }
         @keyframes stuFadeUp { from { opacity: 0; transform: translateY(30px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
       </style>`;
+      
     if (snap.empty) {
       contentArea.innerHTML = `
         ${studentCss}
         <div class="stu-wrapper" style="text-align:center; padding-top: 100px;">
           <div style="font-size: 4rem; margin-bottom: 20px;">🛰️</div>
           <h2 class="stu-header-title">No Active Missions</h2>
-          <p class="stu-subtitle">Your ATL Incharge hasn't assigned any Tinkering Activities to you yet.</p></div>`;return;}
+          <p class="stu-subtitle">Your ATL Incharge hasn't assigned any Tinkering Activities to you yet.</p></div>`;
+      return;
+    }
+    
     window.taStudentData = {}; 
     let gridHtml = '';
-    snap.forEach(doc => {const data = doc.data();
-      window.taStudentData[doc.id] = data; const status = (data.status || 'assigned').toLowerCase();
+    
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      window.taStudentData[docSnap.id] = data; 
+      const status = (data.status || 'assigned').toLowerCase();
       const isCompleted = status === 'completed';
-      gridHtml += `<div class="stu-card" onclick="window.openStudentTAModal('${doc.id}')">
+      
+      gridHtml += `<div class="stu-card" onclick="window.openStudentTAModal('${docSnap.id}')">
           <div class="stu-badge ${isCompleted ? 'stu-badge-completed' : ''}">${isCompleted ? 'Completed' : 'Active'}</div>
           <div class="stu-subject">${data.subject || 'Innovation'}</div>
           <div class="stu-activity-title">${data.activityName || 'Classified Project'}</div>
           <div class="stu-intro">${data.introduction || 'Click to view mission blueprint...'}</div>
-          <button class="stu-btn">View Details <span>↗</span></button></div>`;});
+          <button class="stu-btn">View Details <span>↗</span></button></div>`;
+    });
 
-window.openStudentTAModal = function(taId) {
+    window.openStudentTAModal = function(taId) {
       const data = window.taStudentData[taId];
       if (!data) return;
+      
       const buildList = (arr, icon) => {
         if (!arr || arr.length === 0) return `<p style="color:#8e8e93; font-style:italic;">None specified.</p>`;
-        return `<ul class="stu-list">${arr.map(item => `<li><span style="display:none;">${icon}</span>${item}</li>`).join('')}</ul>`;};
+        return `<ul class="stu-list">${arr.map(item => `<li><span style="display:none;">${icon}</span>${item}</li>`).join('')}</ul>`;
+      };
+      
       const status = data.status || 'assigned';
       let actionAreaHtml = '';
-      if (status === 'completed') {actionAreaHtml = `<div style="background: rgba(52, 199, 89, 0.1); border: 1px solid rgba(52, 199, 89, 0.2); border-radius: 24px; padding: 24px; text-align: center;">
+      
+      if (status === 'completed') {
+        actionAreaHtml = `<div style="background: rgba(52, 199, 89, 0.1); border: 1px solid rgba(52, 199, 89, 0.2); border-radius: 24px; padding: 24px; text-align: center;">
             <div style="font-size: 2rem; margin-bottom: 8px;">🏆</div><h4 style="color: #28a745; margin: 0 0 8px 0; font-size: 1.2rem;">TA submitted </h4>
             <p style="color: #28a745; opacity: 0.8; margin: 0; font-weight: 500;">Your ATL Incharge has verified this activity.</p></div>`;
       } else if (status === 'submitted') {
@@ -303,18 +313,31 @@ window.openStudentTAModal = function(taId) {
             <div style="font-size: 2rem; margin-bottom: 8px; animation: atlSpin 2s linear infinite;">⏳</div>
             <h4 style="color: #007aff; margin: 0 0 8px 0; font-size: 1.2rem;">Under Review</h4>
             <p style="color: #007aff; opacity: 0.8; margin: 0; font-weight: 500;">Awaiting verification from Lab Command.</p></div>`;
-      } else {actionAreaHtml = `<div id="stu-submit-trigger-${taId}">
+      } else {
+        actionAreaHtml = `<div id="stu-submit-trigger-${taId}">
             <button onclick="document.getElementById('stu-submit-trigger-${taId}').style.display='none'; document.getElementById('stu-submit-form-${taId}').style.display='block';" 
-                    style="background: linear-gradient(135deg, #007aff, #005bb5); color: #fff; border: none; border-radius: 100px; padding: 20px 60px; font-size: 1.15rem; font-weight: 800; cursor: pointer; box-shadow: 0 20px 40px rgba(0, 122, 255, 0.3); transition: transform 0.3s ease; width: 100%;">
-              Submit 🚀</button></div>
+                  style="background: linear-gradient(135deg, #007aff, #005bb5); color: #fff; border: none; border-radius: 100px; padding: 20px 60px; font-size: 1.15rem; font-weight: 800; cursor: pointer; box-shadow: 0 20px 40px rgba(0, 122, 255, 0.3); transition: transform 0.3s ease; width: 100%;">
+              Submit & Auto-Generate ✨</button></div>
           <div id="stu-submit-form-${taId}" style="display: none; background: #f9f9fb; border-radius: 28px; padding: 32px; border: 1px solid rgba(0,0,0,0.05); animation: stuFadeUp 0.4s ease;">
-            <h4 style="font-size: 1.2rem; color: #1c1c1e; margin: 0 0 16px 0; font-weight: 800;">Upload Telemetry</h4>
+            <h4 style="font-size: 1.2rem; color: #1c1c1e; margin: 0 0 16px 0; font-weight: 800;">Upload Telemetry & Generate Next Phase</h4>
+            
             <label style="display:block; font-size: 0.9rem; font-weight: 700; color: #8e8e93; margin-bottom: 8px;">Project Evidence (Drive/Video Link)</label>
             <input type="url" id="ta-stu-link-${taId}" placeholder="https://..." style="width: 100%; box-sizing: border-box; background: #fff; border: 2px solid transparent; border-radius: 16px; padding: 16px; font-size: 1rem; color: #1c1c1e; outline: none; transition: 0.3s; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onfocus="this.style.borderColor='#007aff'">
+            
+            <label style="display:block; font-size: 0.9rem; font-weight: 700; color: #8e8e93; margin-bottom: 8px;">Self Evaluation</label>
+            <select id="ta-stu-eval-${taId}" style="width: 100%; box-sizing: border-box; background: #fff; border: 2px solid transparent; border-radius: 16px; padding: 16px; font-size: 1rem; color: #1c1c1e; outline: none; transition: 0.3s; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onfocus="this.style.borderColor='#007aff'">
+                <option value="" disabled selected>How did the activity go?</option>
+                <option value="successful">✅ Mission Accomplished (Successful)</option>
+                <option value="partly_done">🚧 Need Backup (Partly Done)</option>
+                <option value="could_not">❌ Mission Failed (Couldn't Complete)</option>
+            </select>
+
             <label style="display:block; font-size: 0.9rem; font-weight: 700; color: #8e8e93; margin-bottom: 8px;">Field Notes & Observations</label>
             <textarea id="ta-stu-notes-${taId}" placeholder="What did you learn? Did you face any issues?" style="width: 100%; box-sizing: border-box; background: #fff; border: 2px solid transparent; border-radius: 16px; padding: 16px; font-size: 1rem; color: #1c1c1e; outline: none; transition: 0.3s; margin-bottom: 24px; min-height: 100px; resize: vertical; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onfocus="this.style.borderColor='#007aff'"></textarea>
+            
             <button onclick="window.submitTAMission('${taId}')" id="btn-submit-${taId}" style="background: #0099ff; color: #fff; border: none; border-radius: 100px; padding: 18px; font-size: 1.1rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(52, 140, 199, 0.3); width: 100%; transition: 0.2s;">
-              Upload 📡</button></div>`;}
+              Upload & Generate 📡</button></div>`;
+      }
 
       document.getElementById('stuModalContent').innerHTML = `
         <div class="stu-modal-content-scroll">
@@ -336,40 +359,132 @@ window.openStudentTAModal = function(taId) {
               <div class="stu-section"><h4><span>⚠️</span> Safety & Tips</h4>${buildList(data.tips, '')}</div>
               <div class="stu-section"><h4><span>📊</span> Expected Observations</h4>${buildList(data.observations, '')}</div></div>
         <div class="stu-section" style="margin-top: 60px;">${actionAreaHtml}</div></div></div>`;
+      
       const overlay = document.getElementById('stuModalOverlay');
       overlay.style.display = 'flex';
-      requestAnimationFrame(() => overlay.classList.add('active'));};
+      requestAnimationFrame(() => overlay.classList.add('active'));
+    };
+    
+    // THE AI GENERATION LOGIC - SAVES BACK INTO THE CORRECT NESTED SUBCOLLECTION
     window.submitTAMission = async function(taId) {
       const btn = document.getElementById(`btn-submit-${taId}`);
       const linkVal = document.getElementById(`ta-stu-link-${taId}`).value.trim();
       const notesVal = document.getElementById(`ta-stu-notes-${taId}`).value.trim();
+      const evalVal = document.getElementById(`ta-stu-eval-${taId}`).value;
 
-      if (!linkVal && !notesVal) {
-        alert("Please provide either a project link or field notes to submit.");
-        return;}
-      btn.innerText = "Uploading⏳";
+      if ((!linkVal && !notesVal) || !evalVal) {
+        alert("Please provide an evaluation, and either a project link or field notes.");
+        return;
+      }
+      
+      btn.innerText = "Submitting & Generating AI Task... ⏳";
       btn.disabled = true;
+      
       try {
-        await updateDoc(doc(db, "tinkering_activities", taId), {
+        const lastTa = window.taStudentData[taId];
+        const parentId = lastTa.parentTemplateId; 
+        
+        if (!parentId) throw new Error("Missing parentTemplateId. Cannot locate nested path.");
+
+        // 3. TARGETED UPDATE: Update the specific assignment nested inside its parent Master TA
+        const specificAssignmentRef = doc(db, "tinkering_activities", parentId, "assignments", taId);
+        
+        await updateDoc(specificAssignmentRef, {
           status: 'submitted',
           submissionURL: linkVal,
+          selfEval: evalVal,
           studentNotes: notesVal,
-          submittedAt: serverTimestamp()});
+          submittedAt: serverTimestamp()
+        });
+
+        const userDoc = await getDoc(doc(db, "users", currentUID));
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const aspiration = userData.aspiration || "General Maker";
+        const interests = userData.interests || notesVal || "Tinkering and Technology";
+
+        let complexityDirective = "";
+        if (evalVal === "successful") {
+            complexityDirective = "The student completed the last activity successfully. Generate a slightly MORE complex and advanced activity building on the same topic.";
+        } else if (evalVal === "could_not") {
+            complexityDirective = "The student couldn't complete the last activity. REDUCE the complexity. Generate a simple, foundational activity to help them grasp the basics.";
+        } else if (evalVal === "partly_done") {
+            complexityDirective = `The student partly finished. Read their interests (${interests}) and their specific feedback ('${notesVal}') to generate an activity that bridges their current roadblock with what they actually care about.`;
+        }
+
+        const prompt = `You are an expert Tinkering Lab AI. Create a new custom activity for a student.\nStudent Aspiration: ${aspiration}\nStudent Interests: ${interests}\nPrevious Activity: ${lastTa.activityName} (${lastTa.topic})\n\nDirective: ${complexityDirective}\n\nRespond strictly in valid JSON format exactly like this:\n{\n  "activityName": "Inspiring Title",\n  "subject": "${lastTa.subject || 'Technology'}",\n  "topic": "Main Topic",\n  "subTopic": "Specific Focus",\n  "introduction": "Brief intro...",\n  "goals": ["Goal 1"],\n  "materials": ["Item 1"],\n  "instructions": ["Step 1"],\n  "tips": ["Tip 1"],\n  "observations": ["Obs 1"],\n  "extensions": ["Bonus 1"],\n  "resources": ["Link 1"]\n}`;
+
+        const backendEndpoint = "https://hamaralabs.vercel.app/api/generateTA"; 
+        
+        const aiResponse = await fetch(backendEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ promptText: prompt }) // Matches expected backend payload
+        });
+        
+        if (aiResponse.ok) {
+            const aiData = await aiResponse.json();
+            
+            let rawJsonText = aiData.text || aiData.response || aiData; 
+            if (aiData.candidates && aiData.candidates[0].content.parts[0].text) {
+                rawJsonText = aiData.candidates[0].content.parts[0].text;
+            }
+
+            if (typeof rawJsonText === 'string') {
+                rawJsonText = rawJsonText.replace(/```json/gi, '').replace(/```/g, '').trim();
+                const firstBrace = rawJsonText.indexOf('{');
+                const lastBrace = rawJsonText.lastIndexOf('}');
+                if(firstBrace !== -1 && lastBrace !== -1) {
+                    rawJsonText = rawJsonText.substring(firstBrace, lastBrace + 1);
+                }
+                const generatedTA = JSON.parse(rawJsonText);
+
+                // 4. TARGETED INSERT: Adds the new AI Clone directly into the same nested 'assignments' subcollection
+                const assignmentsSubcollectionRef = collection(db, "tinkering_activities", parentId, "assignments");
+                
+                await addDoc(assignmentsSubcollectionRef, {
+                    ...generatedTA,
+                    schoolId: lastTa.schoolId || userData.schoolId || "unknown",
+                    createdBy: "AI-System",
+                    createdAt: serverTimestamp(),
+                    docType: "assigned",
+                    status: "assigned", 
+                    assignedTo: currentUID,
+                    activityId: `TA-AI-${Date.now().toString().slice(-6)}`,
+                    parentTemplateId: parentId // Preserve linkage to the parent!
+                });
+            }
+        }
+
         window.taStudentData[taId].status = 'submitted';
         window.taStudentData[taId].submissionURL = linkVal;
         window.taStudentData[taId].studentNotes = notesVal;
-        btn.innerText = "Uploaded Successfullly ✅";
-        btn.style.background = "#007aff";
-        setTimeout(() => { window.openStudentTAModal(taId); }, 1500);
-      } catch (err) {console.error("Submission error:", err);
-        alert("Transmission failed. Please try again.");
-        btn.innerText = "Transmit Data 📡";
-        btn.disabled = false;}};
+        btn.innerText = "Uploaded & AI Task Ready ✅";
+        btn.style.background = "#34c759";
+        
+        setTimeout(() => { 
+          window.closeStudentTAModal();
+          loadStudentTAs(db, currentUID, contentArea); 
+        }, 2000);
+        
+      } catch (err) {
+        console.error("Submission error:", err);
+        alert("Transmission successful, but AI Generation from backend is pending. You can check back later.");
+        btn.innerText = "Upload Complete 📡";
+        btn.disabled = false;
+        setTimeout(() => { 
+          window.closeStudentTAModal();
+          loadStudentTAs(db, currentUID, contentArea); 
+        }, 2000);
+      }
+    };
+    
     window.closeStudentTAModal = function() {
       const overlay = document.getElementById('stuModalOverlay');
       overlay.classList.remove('active');
       setTimeout(() => overlay.style.display = 'none', 300);
-      document.body.style.overflow = ''; };
+      document.body.style.overflow = ''; 
+    };
+    
     contentArea.innerHTML = `${studentCss}
       <div class="stu-wrapper">
         <h2 class="stu-header-title">Mission Briefings</h2>

@@ -27,16 +27,11 @@ export function confettiBurst(x, y) {
 
   const ctx = canvas.getContext("2d"), particles = [];
   for (let i = 0; i < 80; i++) {
-    particles.push({ x, y, size: Math.random() * 6 + 4, speedX: (Math.random() - 0.5) * 10, speedY: (Math.random() - 0.5) * 10, color: `hsl(${Math.random()*360}, 80%, 60%)`, life: 60 });
-  }
-
+    particles.push({ x, y, size: Math.random() * 6 + 4, speedX: (Math.random() - 0.5) * 10, speedY: (Math.random() - 0.5) * 10, color: `hsl(${Math.random()*360}, 80%, 60%)`, life: 60 });}
   (function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     particles.forEach(p => { p.x += p.speedX; p.y += p.speedY; p.life--; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); });
-    if (particles.some(p => p.life > 0)) requestAnimationFrame(animate); else canvas.remove();
-  })();
-}
-
+    if (particles.some(p => p.life > 0)) requestAnimationFrame(animate); else canvas.remove();})();}
 export function startPremiumSparkle() {
   const canvas = document.createElement("canvas");
   Object.assign(canvas.style, { position: "fixed", pointerEvents: "none", top: "0", left: "0", width: "100%", height: "100%", zIndex: "1" });
@@ -50,11 +45,8 @@ export function startPremiumSparkle() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     stars.forEach(s => { s.alpha += (Math.random() - 0.5) * 0.02; ctx.globalAlpha = Math.max(0, s.alpha); ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2); ctx.fillStyle = "#ffffff"; ctx.fill(); });
     requestAnimationFrame(animate);
-  })();
-}
-
+  })();}
 startPremiumSparkle();
-
 export const regformCSS = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 :root {
