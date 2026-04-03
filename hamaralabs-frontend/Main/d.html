@@ -1,46 +1,149 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>HamaraLabs Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="Css/ww.css">
-  <link rel="stylesheet" href="Css/dashboard.css"></head>
-  <style>:root { --144hz-fluid: cubic-bezier(0.32, 0.72, 0, 1);--144hz-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);--144hz-snappy: cubic-bezier(0.2, 0.8, 0.2, 1);}
-html, body {scroll-behavior: smooth;-webkit-overflow-scrolling: touch;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: grayscale;text-rendering: optimizeLegibility;}
-a, button, input, select, textarea, label {transition: all 0.3s var(--144hz-fluid);}
-.ios-drawer, .ios-drawer-content, .sl-data-group, .card, .section {transition-timing-function: var(--144hz-fluid) !important;}
-.ios-drawer {-webkit-backface-visibility: hidden; backface-visibility: hidden;}</style>
-<body><div class="sidebar" id="sidebar"><div class="logo">HamaraLabs 🏠</div></div><div class="main"><div class="topbar"><h3 id="welcomeText">Loading...</h3>
-<button class="settings-Btn" id="settingsBtn">⚙️</button><!-- settings button-->
-<div class="user-info"><span class="role-badge"id="roleBadge"></span><div class="logout"id="logoutBtn">Logout</div> </div>
-</div><div class="content" id="contentArea"><div class="loader">Loading dashboard...</div></div>
-<div class="modal hidden" id="assignTaskModal"><div class="premium-modal-content"><div class="premium-modal-header"><h3>Assign New Task</h3>
-      <button class="premium-close-btn" onclick="window.closeTaskModal()">✕</button></div><div class="premium-ai-box">
-      <div style="font-size: 1.4rem;">✨</div><input type="text" id="aiTaskIdea" class="premium-ai-input" placeholder="e.g., Build a smart dustbin with Arduino...">
-      <button id="aiGenerateBtn" class="premium-ai-btn" type="button" onclick="window.generateTaskWithAI()">Auto-Write</button></div>
-    <div class="premium-form-group"><label class="premium-label">Task Title</label><input type="text" id="taskTitle" class="premium-input" placeholder="Enter a clear, concise title"></div>
-    <div class="premium-form-group"><label class="premium-label">Detailed Description</label><textarea id="taskDescription" class="premium-input" placeholder="Explain what the student needs to do..."></textarea></div>
-    <div class="premium-grid-row"><div class="premium-form-group"><label class="premium-label">Due Date</label><input type="date" id="taskDueDate" class="premium-input"></div>
-    <div class="premium-form-group"><label class="premium-label">Priority Level</label><select id="taskPriority" class="premium-input">
-    <option value="low">🟢 Low Priority</option><option value="medium" selected>🟡 Medium Priority</option><option value="high">🔴 High Priority</option></select></div></div>
-    <button class="premium-submit-btn" id="saveTaskBtn">Publish Task to Student</button></div></div> <div class="modal hidden" id="studentTaskModal">
-  <div class="modal-content"><div style="display:flex;justify-content:space-between;">
-  <h3 id="modalStudentName">Student Tasks</h3><button onclick="closeStudentTaskModal()">X</button></div>
-  <div id="mentorTaskListContainer"></div></div></div></div></div></div></div>
-</div><div id="settingsModal" class="modal hidden"><div class="modal-content"><div class="pfp-wrapper">
-<img src="https://static.vecteezy.com/system/resources/previews/021/548/095/original/default-profile-picture-avatar-user-avatar-icon-person-icon-head-icon-profile-picture-icons-default-anonymous-user-male-and-female-businessman-photo-placeholder-social-network-avatar-portrait-free-vector.jpg" alt="Profile Picture" id="userPfp">
-<div class="pfp-ring"></div></div><h3>User Settings</h3><div class="data-group">
-<p><strong>Email:</strong> <span id="userEmail">user@example.com</span></p>
-<p><strong>UID:</strong> <span id="userUID">#847291</span></p>
-<div class="button-row"><button id="logoutBtn">Logout 📤</button><button id="closeModal">Close ❌</button></div></div></div>
-<div id="mentorDetailPanel" class="mentor-detail-panel hidden"><div class="mentor-detail-content"><div class="mentor-detail-header"><span id="mentorDetailTitle"></span>
-<button onclick="closeMentorDetailPanel()">✕</button></div><div id="mentorDetailBody"></div></div></div>
-<div id="studentTaskContainer"></div>
-<div class="mobile-header">
-  <h2 style="margin:0; font-size:1.2rem; font-weight:800; color:#0f172a;">HamaraLabs</h2>
-  <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
-</div>
-<div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleMobileMenu()"></div>
-<div id="dashboardContent"></div>
-<script type="module" src="jsCodes/dashboard.js"></script><script type="module" src="jsCodes/settings.js"></script></body></html>
+  <link rel="stylesheet" href="Css/dashboard.css">
+  <style>
+    :root { 
+      --144hz-fluid: cubic-bezier(0.32, 0.72, 0, 1);
+      --144hz-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --144hz-snappy: cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    html, body {
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+    a, button, input, select, textarea, label {
+      transition: all 0.3s var(--144hz-fluid);
+    }
+    .ios-drawer, .ios-drawer-content, .sl-data-group, .card, .section {
+      transition-timing-function: var(--144hz-fluid) !important;
+    }
+    .ios-drawer {
+      -webkit-backface-visibility: hidden; 
+      backface-visibility: hidden;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar" id="sidebar">
+    <div class="logo">HamaraLabs 🏠</div>
+    </div>
+
+  <div id="sidebarOverlay" class="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('open'); this.classList.remove('active');"></div>
+
+  <div class="main">
+    
+    <div class="topbar">
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('active');" style="background:none; border:none; padding:0; cursor:pointer;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <h3 id="welcomeText" style="margin:0;">Loading...</h3>
+      </div>
+
+      <div class="user-info">
+        <span class="role-badge" id="roleBadge"></span>
+        <button class="settings-Btn" id="settingsBtn">⚙️</button>
+      </div>
+    </div>
+
+    <div class="content" id="contentArea">
+      <div class="loader">Loading dashboard...</div>
+      <div id="dashboardContent"></div> <div id="studentTaskContainer"></div> </div>
+
+  </div> <div id="settingsModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="pfp-wrapper">
+        <img src="https://static.vecteezy.com/system/resources/previews/021/548/095/original/default-profile-picture-avatar-user-avatar-icon-person-icon-head-icon-profile-picture-icons-default-anonymous-user-male-and-female-businessman-photo-placeholder-social-network-avatar-portrait-free-vector.jpg" alt="Profile" id="userPfp">
+        <div class="pfp-ring"></div>
+      </div>
+      <h3>User Settings</h3>
+      <div class="data-group">
+        <p><strong>Email:</strong> <span id="userEmail">Loading...</span></p>
+        <p><strong>UID:</strong> <span id="userUID">Loading...</span></p>
+        <div class="button-row">
+          <button id="logoutBtn">Logout 📤</button>
+          <button id="closeModal">Close ❌</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="assignTaskModal">
+    <div class="premium-modal-content" style="background:#fff; border-radius:24px; padding:30px; width:90%; max-width:500px; margin:0 auto;">
+      <div class="premium-modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3 style="margin:0;">Assign New Task</h3>
+        <button class="premium-close-btn" onclick="window.closeTaskModal()" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">✕</button>
+      </div>
+      
+      <div class="premium-ai-box" style="display:flex; gap:10px; margin-bottom:20px; align-items:center;">
+        <div style="font-size: 1.4rem;">✨</div>
+        <input type="text" id="aiTaskIdea" class="premium-ai-input" placeholder="e.g., Build a smart dustbin..." style="flex:1; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+        <button id="aiGenerateBtn" class="premium-ai-btn" type="button" onclick="window.generateTaskWithAI()" style="padding:10px 15px; border-radius:8px; background:#007aff; color:#fff; border:none; cursor:pointer;">Auto-Write</button>
+      </div>
+      
+      <div class="premium-form-group" style="margin-bottom:15px;">
+        <label class="premium-label" style="display:block; margin-bottom:5px; font-weight:600;">Task Title</label>
+        <input type="text" id="taskTitle" class="premium-input" placeholder="Enter a clear title" style="width:100%; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+      </div>
+      
+      <div class="premium-form-group" style="margin-bottom:15px;">
+        <label class="premium-label" style="display:block; margin-bottom:5px; font-weight:600;">Detailed Description</label>
+        <textarea id="taskDescription" class="premium-input" placeholder="Explain what the student needs to do..." style="width:100%; padding:10px; border-radius:8px; border:1px solid #e2e8f0; min-height:80px;"></textarea>
+      </div>
+      
+      <div class="premium-grid-row" style="display:flex; gap:15px; margin-bottom:20px;">
+        <div class="premium-form-group" style="flex:1;">
+          <label class="premium-label" style="display:block; margin-bottom:5px; font-weight:600;">Due Date</label>
+          <input type="date" id="taskDueDate" class="premium-input" style="width:100%; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+        </div>
+        <div class="premium-form-group" style="flex:1;">
+          <label class="premium-label" style="display:block; margin-bottom:5px; font-weight:600;">Priority Level</label>
+          <select id="taskPriority" class="premium-input" style="width:100%; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+            <option value="low">🟢 Low</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="high">🔴 High</option>
+          </select>
+        </div>
+      </div>
+      <button class="premium-submit-btn" id="saveTaskBtn" style="width:100%; padding:14px; border-radius:12px; background:#007aff; color:#fff; border:none; font-weight:700; cursor:pointer;">Publish Task</button>
+    </div>
+  </div> 
+
+  <div class="modal hidden" id="studentTaskModal">
+    <div class="modal-content" style="background:#fff; border-radius:24px; padding:30px; width:90%; max-width:500px; margin:0 auto;">
+      <div style="display:flex; justify-content:space-between; margin-bottom: 20px;">
+        <h3 id="modalStudentName" style="margin:0;">Student Tasks</h3>
+        <button onclick="closeStudentTaskModal()" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">✕</button>
+      </div>
+      <div id="mentorTaskListContainer"></div>
+    </div>
+  </div>
+
+  <div id="mentorDetailPanel" class="mentor-detail-panel hidden">
+    <div class="mentor-detail-content">
+      <div class="mentor-detail-header">
+        <span id="mentorDetailTitle"></span>
+        <button onclick="closeMentorDetailPanel()">✕</button>
+      </div>
+      <div id="mentorDetailBody"></div>
+    </div>
+  </div>
+
+  <script type="module" src="jsCodes/dashboard.js"></script>
+  <script type="module" src="jsCodes/settings.js"></script>
+</body>
+</html>
