@@ -145,3 +145,86 @@ select.premium-input { appearance: none; cursor: pointer; background-image: url(
 .nav-item { padding: 10px 16px; margin: 4px 12px; border-radius: 8px; color: #333; font-weight: 500; cursor: pointer; transition: all 0.2s ease; }
 .nav-item:hover { background: rgba(0, 0, 0, 0.04); }
 .nav-item.active { background: rgba(0, 122, 255, 0.1); color: #007AFF; font-weight: 600; }
+<style>
+/* =========================================================
+   GLOBAL MOBILE RESPONSIVE OVERRIDE (Max Width: 768px)
+========================================================= */
+@media screen and (max-width: 768px) {
+    
+    /* 1. FORCE GRIDS TO STACK */
+    .ta-grid-3, 
+    .ta-grid-2, 
+    .stu-grid, 
+    [style*="grid-template-columns: 1fr 1fr"], 
+    [style*="grid-template-columns: repeat"] {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+    }
+
+    /* 2. REDUCE MASSIVE PADDING ON CARDS & WRAPPERS */
+    .ta-wrapper, .hub-wrapper, .stu-wrapper { 
+        padding: 20px 15px 80px 15px !important; 
+    }
+    .ta-card, .stu-card, 
+    [style*="padding: 32px"], 
+    [style*="padding:32px"], 
+    [style*="padding: 24px"] { 
+        padding: 20px !important; 
+    }
+
+    /* 3. FIX MODALS SO THEY FIT THE SCREEN */
+    .td-modal, .stu-modal, .hub-mac-modal { 
+        width: 95% !important; 
+        max-height: 90vh !important; 
+        border-radius: 24px !important;
+    }
+    .stu-modal-header, .td-modal > div:first-child {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        padding: 24px 20px !important;
+        position: relative;
+    }
+    .stu-close, [onclick="window.closeTaskDetailModal()"] {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+    }
+    .stu-modal-body, #tdBody {
+        padding: 20px !important;
+    }
+
+    /* 4. SCALE DOWN MASSIVE TYPOGRAPHY */
+    .ta-title, .stu-heading-layer, h1, h2 { 
+        font-size: 2rem !important; 
+        line-height: 1.2 !important;
+    }
+    
+    /* 5. FIX INLINE FLEX ROWS (Like the Telemetry target dropdowns) */
+    [style*="display: flex; gap: 16px; flex-wrap: wrap;"],
+    [style*="display:flex; gap:32px;"] {
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    /* 6. MAKE INPUTS & SELECTS FULL WIDTH */
+    .snap-pro-select, .ta-input, .ta-select { 
+        width: 100% !important; 
+        min-width: 100% !important; 
+    }
+
+    /* 7. FULL WIDTH BUTTONS FOR THUMB TAPPING */
+    .snap-pro-btn, .ta-btn-primary, .stu-btn { 
+        width: 100% !important; 
+        padding: 16px !important; 
+        justify-content: center !important;
+    }
+
+    /* 8. FIX THE LIVE SYNC PROGRESS CIRCLES ALIGNMENT */
+    [style*="display:flex; align-items:center; gap:24px; margin-bottom:40px;"] {
+        flex-direction: column !important;
+        text-align: center !important;
+        gap: 16px !important;
+    }
+}
+</style>
