@@ -1,33 +1,44 @@
-# 🚀 HamaraLabs 
-### **The Digital Heart of Atal Tinkering Labs**
+HamaraLabs is a web platform I built to help schools manage their Atal Tinkering Labs (ATL) in a more organized way.
 
-HamaraLabs is a premium, full-stack ecosystem designed to bridge the gap between young innovators and mentors. it transforms how schools manage innovation.
+In most schools, ATL activities are not properly tracked. Students build projects, mentors guide them, and lab in-charges try to manage everything, but a lot of things are done manually or get lost. There is no proper system to keep track of progress, tasks, or participation.
 
+This project is my attempt to solve that problem with a simple digital platform.
 
+What this project does
 
-## 🛠️ Tech Stack
-* **Frontend:**  HTML, Vanilla JS
-* **Styling:** Pure CSS3 
-* **Database & Auth:** Firebase (Firestore & Authentication)
-* **Interactions:** GSAP & Vanilla Tilt for that "liquid" UI feel
+HamaraLabs connects three main roles:
 
----
+Students
+Students can work on tasks, build projects, and submit their progress through the platform.
 
-## 🚀 Core Features
+Mentors
+Mentors can review student submissions, verify their work, and guide them.
 
-### 🔐 **Smart Authentication**
-* Multi-role support (Students, Mentors, ATL Incharges).
-* Social Auth integration (Google, Microsoft, Yahoo).
-* Automated school-lookup and profile mapping.
+Lab In-charges
+They can monitor all activities happening in the lab, track progress, and manage everything from one place.
 
-### 📊 **Intelligence Dashboard**
-* **Action Matrix:** Insights generated based on school innovation data.
-* **Tinkering Pulse:** Real-time tracking of active lab activities.
-* **Activity Radar:** A visual timeline of progress and milestones.
+Features
+Login system with different roles (student, mentor, admin)
+Dashboard to view lab activity and updates
+Task submission and verification system
+Basic tracking of student progress
+Works on both desktop and mobile
+Tech used
+HTML for structure
+CSS for styling
+JavaScript for functionality
+Firebase (Firestore + Authentication) for backend
+GSAP for UI effects
+About the build
 
-### 🧪 **ATL Management**
-* Task verification workflow between students and mentors.
-* Automated report generation for school admins.
-* Responsive "Mobile-First" design for on-the-go tinkering.
+I built this project mostly on my own as a student project.
 
----
+I have used AI for around 30-35% of the development, mainly for:
+
+understanding concepts
+debugging errors
+improving some parts of the code and writing those functions which i was unable to.
+
+The main idea, structure, features, and implementation are done by me.
+I didn’t want to just make a basic project for the sake of it. I wanted to build something that actually solves a real problem.
+ATL labs have a lot of potential, but they often lack proper management systems. This platform is meant to make things more structured and easier for everyone involved.
